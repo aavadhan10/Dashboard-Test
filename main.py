@@ -29,7 +29,6 @@ def load_and_process_data():
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
         return None
-
 def create_sidebar_filters(df):
     """Create comprehensive sidebar filters."""
     st.sidebar.header("Filters")
@@ -268,7 +267,6 @@ def display_key_metrics(df):
             f"${avg_rate:.2f}/hr",
             "billable rate"
         )
-
 def create_hours_distribution(df):
     """Create hours distribution chart."""
     hours_data = pd.DataFrame({
@@ -402,6 +400,44 @@ def create_trending_chart(df):
         yaxis_title='Hours'
     )
     return fig
+
+def create_attorney_utilization_chart(df):
+    """Create attorney utilization chart."""
+    attorney_util = df.groupby('User full name (first, last)').agg({
+        'Billable hours': 'sum',
+        'Non-billable hours': 'sum',
+        'Tracked hours': 'sum'
+    }).reset_index()
+    
+    attorney_util['Utilization Rate'] = (
+        attorney_util['Billable hours'] / attorney_util['Tracked hours'] * 100
+    ).round(2)
+    
+    fig = px.bar(
+        attorney_util,
+        x='User full name (first, last)',
+        y='Utilization Rate',
+        title='Attorney Utilization Rates',
+        color='Utilization Rate',
+        color_continuous_scale='Viridis'
+    )
+    fig.update_layout(xaxis_tickangle=-45)
+    return fig
+
+def create_practice_area_sunburst(df):
+    """Create practice area sunburst chart."""
+    practice_data = df.groupby(['Practice area', 'User full name (first, last)']).agg({
+        'Billable hours': 'sum'
+    }).reset_index()
+    
+    fig = px.sunburst(
+        practice_data,
+        path=['Practice area', 'User full name (first, last)'],
+        values='Billable hours',
+        title='Practice Area Distribution by Attorney'
+    )
+    return fig
+
 def create_client_metrics_table(df):
     """Create detailed client metrics table."""
     client_metrics = df.groupby('Matter description').agg({
@@ -420,6 +456,10 @@ def create_client_metrics_table(df):
     
     client_metrics['Average Rate'] = (
         client_metrics['Billable hours amount'] / client_metrics['Billable hours']
+    ).round(2)
+    
+    client_metrics['Efficiency Rate'] = (
+        client_metrics['Billed hours'] / client_metrics['Billable hours'] * 100
     ).round(2)
     
     return client_metrics
@@ -462,7 +502,7 @@ def main():
         display_key_metrics(filtered_df)
         
         # Create tabs for different analysis sections
-        main_tabs = st.tabs(["Overview", "Client Analysis", "Attorney Analysis", "Trending"])
+        main_tabs = st.tabs(["Overview", "Client Analysis", "Attorney Analysis", "Practice Areas", "Trending"])
         
         with main_tabs[0]:  # Overview Tab
             col1, col2 = st.columns(2)
@@ -478,6 +518,17 @@ def main():
                     create_practice_area_analysis(filtered_df),
                     use_container_width=True
                 )
+            
+            # Additional overview metrics in expandable section
+            with st.expander("Detailed Overview Metrics"):
+                overview_metrics = filtered_df.agg({
+                    'Billable hours': 'sum',
+                    'Non-billable hours': 'sum',
+                    'Billed hours': 'sum',
+                    'Billable hours amount': 'sum',
+                    'Billed hours amount': 'sum'
+                }).round(2)
+                st.write(overview_metrics)
         
         with main_tabs[1]:  # Client Analysis Tab
             # Client Analysis Section
@@ -508,6 +559,10 @@ def main():
                     "Average Rate": st.column_config.NumberColumn(
                         "Average Rate",
                         format="$%.2f"
+                    ),
+                    "Efficiency Rate": st.column_config.NumberColumn(
+                        "Efficiency Rate",
+                        format="%.2f%%"
                     )
                 }
             )
@@ -522,10 +577,19 @@ def main():
             )
         
         with main_tabs[2]:  # Attorney Analysis Tab
-            st.plotly_chart(
-                create_attorney_performance(filtered_df),
-                use_container_width=True
-            )
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.plotly_chart(
+                    create_attorney_performance(filtered_df),
+                    use_container_width=True
+                )
+            
+            with col2:
+                st.plotly_chart(
+                    create_attorney_utilization_chart(filtered_df),
+                    use_container_width=True
+                )
             
             # Attorney Metrics Table
             st.subheader("Attorney Metrics")
@@ -534,10 +598,32 @@ def main():
                 'Non-billable hours': 'sum',
                 'Billed hours': 'sum',
                 'Billable hours amount': 'sum',
-                'Billed hours amount': 'sum'
+                'Billed hours amount': 'sum',
+                'Tracked hours': 'sum'
             }).round(2)
             
-            st.dataframe(attorney_metrics)
+            # Calculate additional metrics
+            attorney_metrics['Utilization Rate'] = (
+                attorney_metrics['Billable hours'] / attorney_metrics['Tracked hours'] * 100
+            ).round(2)
+            
+            attorney_metrics['Average Rate'] = (
+                attorney_metrics['Billable hours amount'] / attorney_metrics['Billable hours']
+            ).round(2)
+            
+            st.dataframe(
+                attorney_metrics,
+                column_config={
+                    "Utilization Rate": st.column_config.NumberColumn(
+                        "Utilization Rate",
+                        format="%.2f%%"
+                    ),
+                    "Average Rate": st.column_config.NumberColumn(
+                        "Average Rate",
+                        format="$%.2f"
+                    )
+                }
+            )
             
             # Download button for attorney metrics
             attorney_csv = attorney_metrics.to_csv().encode('utf-8')
@@ -548,10 +634,43 @@ def main():
                 mime="text/csv",
             )
         
-        with main_tabs[3]:  # Trending Tab
+        with main_tabs[3]:  # Practice Areas Tab
+            # Practice Area Distribution
+            st.plotly_chart(
+                create_practice_area_sunburst(filtered_df),
+                use_container_width=True
+            )
+            
+            # Practice Area Metrics Table
+            st.subheader("Practice Area Metrics")
+            practice_metrics = filtered_df.groupby('Practice area').agg({
+                'Billable hours': 'sum',
+                'Non-billable hours': 'sum',
+                'Billed hours': 'sum',
+                'Billable hours amount': 'sum',
+                'Billed hours amount': 'sum'
+            }).round(2)
+            
+            st.dataframe(practice_metrics)
+        
+        with main_tabs[4]:  # Trending Tab
             st.plotly_chart(
                 create_trending_chart(filtered_df),
                 use_container_width=True
+            )
+            
+            # Monthly trends
+            monthly_data = filtered_df.groupby([
+                pd.Grouper(key='Activity date', freq='M')
+            ]).agg({
+                'Billable hours': 'sum',
+                'Billed hours': 'sum',
+                'Non-billable hours': 'sum'
+            }).reset_index()
+            
+            st.subheader("Monthly Trends")
+            st.line_chart(
+                monthly_data.set_index('Activity date')
             )
 
 if __name__ == "__main__":
