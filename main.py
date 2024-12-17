@@ -5,11 +5,8 @@ import plotly.graph_objects as go
 from datetime import datetime
 import calendar
 
-# Constants
-GITHUB_CSV_URL = "https://raw.githubusercontent.com/[your-username]/[your-repo]/main/Test.csv"
-
 def load_and_process_data():
-    """Load and process the CSV file from GitHub."""
+    """Load and process the CSV file."""
     try:
         # Load the CSV file directly
         df = pd.read_csv('Test.csv')
@@ -35,7 +32,7 @@ def create_sidebar_filters(df):
     st.sidebar.header("Filters")
     
     # Create tabs for filter categories
-    filter_tabs = st.sidebar.tabs(["Time", "Attorneys", "Practice", "Matter"])
+    filter_tabs = st.sidebar.tabs(["Time", "Attorneys", "Practice", "Matter", "Financial", "Clients"])
     
     with filter_tabs[0]:  # Time Filters
         st.subheader("Time Period")
@@ -54,6 +51,14 @@ def create_sidebar_filters(df):
             "Months",
             options=sorted(df['Activity month'].unique())
         )
+        
+        # Add date range filter
+        date_range = st.date_input(
+            "Custom Date Range",
+            value=(df['Activity date'].min(), df['Activity date'].max()),
+            min_value=df['Activity date'].min(),
+            max_value=df['Activity date'].max()
+        )
 
     with filter_tabs[1]:  # Attorney Filters
         st.subheader("Attorney Information")
@@ -65,6 +70,14 @@ def create_sidebar_filters(df):
         selected_originating = st.multiselect(
             "Originating Attorneys",
             options=sorted(df['Originating attorney'].dropna().unique())
+        )
+        
+        # Add minimum hours filter
+        min_hours = st.slider(
+            "Minimum Billable Hours",
+            min_value=0.0,
+            max_value=float(df['Billable hours'].max()),
+            value=0.0
         )
 
     with filter_tabs[2]:  # Practice Filters
@@ -99,6 +112,36 @@ def create_sidebar_filters(df):
                 options=sorted(df['Billable matter'].dropna().unique())
             )
 
+    with filter_tabs[4]:  # Financial Filters
+        st.subheader("Financial Metrics")
+        min_amount = st.number_input(
+            "Minimum Billable Amount",
+            min_value=0.0,
+            max_value=float(df['Billable hours amount'].max()),
+            value=0.0
+        )
+        
+        rate_range = st.slider(
+            "Hourly Rate Range",
+            min_value=float(df['Billable hours amount'].min()),
+            max_value=float(df['Billable hours amount'].max()),
+            value=(float(df['Billable hours amount'].min()), float(df['Billable hours amount'].max()))
+        )
+
+    with filter_tabs[5]:  # Client Filters
+        st.subheader("Client Information")
+        selected_clients = st.multiselect(
+            "Select Clients",
+            options=sorted(df['Matter description'].unique())
+        )
+        
+        min_client_hours = st.slider(
+            "Minimum Client Hours",
+            min_value=0.0,
+            max_value=float(df.groupby('Matter description')['Billable hours'].sum().max()),
+            value=0.0
+        )
+
     # Display refresh information
     st.sidebar.markdown("---")
     st.sidebar.markdown("**Last Data Refresh:** December 16, 2024")
@@ -108,13 +151,19 @@ def create_sidebar_filters(df):
         'year': selected_year,
         'quarter': selected_quarter,
         'months': selected_months,
+        'date_range': date_range,
         'attorneys': selected_attorneys,
         'originating_attorneys': selected_originating,
+        'min_hours': min_hours,
         'practice_areas': selected_practice_areas,
         'locations': selected_locations if 'Matter location' in df.columns else [],
         'matter_status': selected_matter_status,
         'matter_stage': selected_matter_stage if 'Matter stage' in df.columns else [],
-        'billable_matter': billable_matter if 'Billable matter' in df.columns else []
+        'billable_matter': billable_matter if 'Billable matter' in df.columns else [],
+        'min_amount': min_amount,
+        'rate_range': rate_range,
+        'clients': selected_clients,
+        'min_client_hours': min_client_hours
     }
 
 def filter_data(df, filters):
@@ -128,12 +177,21 @@ def filter_data(df, filters):
         filtered_df = filtered_df[filtered_df['Activity quarter'] == filters['quarter']]
     if filters['months']:
         filtered_df = filtered_df[filtered_df['Activity month'].isin(filters['months'])]
+    if len(filters['date_range']) == 2:
+        filtered_df = filtered_df[
+            (filtered_df['Activity date'].dt.date >= filters['date_range'][0]) &
+            (filtered_df['Activity date'].dt.date <= filters['date_range'][1])
+        ]
     
     # Attorney filters
     if filters['attorneys']:
         filtered_df = filtered_df[filtered_df['User full name (first, last)'].isin(filters['attorneys'])]
     if filters['originating_attorneys']:
         filtered_df = filtered_df[filtered_df['Originating attorney'].isin(filters['originating_attorneys'])]
+    if filters['min_hours'] > 0:
+        attorney_hours = filtered_df.groupby('User full name (first, last)')['Billable hours'].sum()
+        valid_attorneys = attorney_hours[attorney_hours >= filters['min_hours']].index
+        filtered_df = filtered_df[filtered_df['User full name (first, last)'].isin(valid_attorneys)]
     
     # Practice area filters
     if filters['practice_areas']:
@@ -148,6 +206,23 @@ def filter_data(df, filters):
         filtered_df = filtered_df[filtered_df['Matter stage'].isin(filters['matter_stage'])]
     if filters['billable_matter']:
         filtered_df = filtered_df[filtered_df['Billable matter'].isin(filters['billable_matter'])]
+    
+    # Financial filters
+    if filters['min_amount'] > 0:
+        filtered_df = filtered_df[filtered_df['Billable hours amount'] >= filters['min_amount']]
+    if len(filters['rate_range']) == 2:
+        filtered_df = filtered_df[
+            (filtered_df['Billable hours amount'] >= filters['rate_range'][0]) &
+            (filtered_df['Billable hours amount'] <= filters['rate_range'][1])
+        ]
+    
+    # Client filters
+    if filters['clients']:
+        filtered_df = filtered_df[filtered_df['Matter description'].isin(filters['clients'])]
+    if filters['min_client_hours'] > 0:
+        client_hours = filtered_df.groupby('Matter description')['Billable hours'].sum()
+        valid_clients = client_hours[client_hours >= filters['min_client_hours']].index
+        filtered_df = filtered_df[filtered_df['Matter description'].isin(valid_clients)]
     
     return filtered_df
 
@@ -244,6 +319,109 @@ def create_attorney_performance(df):
     )
     return fig
 
+def create_client_analysis_charts(df):
+    """Create client analysis visualizations."""
+    # Top clients by billable hours
+    top_clients = df.groupby('Matter description').agg({
+        'Billable hours': 'sum',
+        'Billable hours amount': 'sum'
+    }).sort_values('Billable hours', ascending=False).head(10)
+    
+    fig1 = px.bar(
+        top_clients,
+        y=top_clients.index,
+        x='Billable hours',
+        title='Top 10 Clients by Billable Hours',
+        orientation='h'
+    )
+    
+    # Client hours distribution
+    client_hours = df.groupby('Matter description').agg({
+        'Billable hours': 'sum',
+        'Non-billable hours': 'sum',
+        'Unbilled hours': 'sum'
+    }).reset_index()
+    
+    fig2 = px.treemap(
+        client_hours,
+        path=['Matter description'],
+        values='Billable hours',
+        title='Client Hours Distribution'
+    )
+    
+    return fig1, fig2
+
+def create_client_practice_area_chart(df):
+    """Create client by practice area analysis."""
+    client_practice = df.groupby(['Matter description', 'Practice area']).agg({
+        'Billable hours': 'sum'
+    }).reset_index()
+    
+    fig = px.sunburst(
+        client_practice,
+        path=['Practice area', 'Matter description'],
+        values='Billable hours',
+        title='Client Distribution by Practice Area'
+    )
+    return fig
+
+def create_trending_chart(df):
+    """Create trending analysis chart."""
+    daily_data = df.groupby('Activity date').agg({
+        'Billable hours': 'sum',
+        'Billed hours': 'sum',
+        'Non-billable hours': 'sum'
+    }).reset_index()
+    
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=daily_data['Activity date'],
+        y=daily_data['Billable hours'],
+        name='Billable Hours',
+        mode='lines+markers'
+    ))
+    fig.add_trace(go.Scatter(
+        x=daily_data['Activity date'],
+        y=daily_data['Billed hours'],
+        name='Billed Hours',
+        mode='lines+markers'
+    ))
+    fig.add_trace(go.Scatter(
+        x=daily_data['Activity date'],
+        y=daily_data['Non-billable hours'],
+        name='Non-billable Hours',
+        mode='lines+markers'
+    ))
+    
+    fig.update_layout(
+        title='Daily Hours Trend',
+        xaxis_title='Date',
+        yaxis_title='Hours'
+    )
+    return fig
+
+def create_client_metrics_table(df):
+    """Create detailed client metrics table."""
+    client_metrics = df.groupby('Matter description').agg({
+        'Billable hours': 'sum',
+        'Billed hours': 'sum',
+        'Non-billable hours': 'sum',
+        'Billable hours amount': 'sum',
+        'Billed hours amount': 'sum',
+        'Tracked hours': 'sum'
+    }).round(2)
+    
+    # Calculate additional metrics
+    client_metrics['Utilization Rate'] = (
+        client_metrics['Billable hours'] / client_metrics['Tracked hours'] * 100
+    ).round(2)
+    
+    client_metrics['Average Rate'] = (
+        client_metrics['Billable hours amount'] / client_metrics['Billable hours']
+    ).round(2)
+    
+    return client_metrics
+
 def main():
     st.set_page_config(page_title="Legal Dashboard", layout="wide")
     st.title("Legal Practice Management Dashboard")
@@ -281,38 +459,89 @@ def main():
         # Display metrics and charts
         display_key_metrics(filtered_df)
         
-        # Create two columns for charts
-        col1, col2 = st.columns(2)
+        # Create tabs for different analysis sections
+        main_tabs = st.tabs(["Overview", "Client Analysis", "Attorney Analysis", "Trending"])
         
-        with col1:
+        with main_tabs[0]:  # Overview Tab
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.plotly_chart(
+                    create_hours_distribution(filtered_df),
+                    use_container_width=True
+                )
+            
+            with col2:
+                st.plotly_chart(
+                    create_practice_area_analysis(filtered_df),
+                    use_container_width=True
+                )
+        
+        with main_tabs[1]:  # Client Analysis Tab
+            # Client Analysis Section
+            client_bar, client_treemap = create_client_analysis_charts(filtered_df)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.plotly_chart(client_bar, use_container_width=True)
+            with col2:
+                st.plotly_chart(client_treemap, use_container_width=True)
+            
+            # Client Practice Area Distribution
             st.plotly_chart(
-                create_hours_distribution(filtered_df),
+                create_client_practice_area_chart(filtered_df),
                 use_container_width=True
             )
-        
-        with col2:
-            st.plotly_chart(
-                create_practice_area_analysis(filtered_df),
-                use_container_width=True
+            
+            # Client Metrics Table
+            st.subheader("Client Metrics")
+            client_metrics = create_client_metrics_table(filtered_df)
+            st.dataframe(
+                client_metrics,
+                column_config={
+                    "Utilization Rate": st.column_config.NumberColumn(
+                        "Utilization Rate",
+                        format="%.2f%%"
+                    ),
+                    "Average Rate": st.column_config.NumberColumn(
+                        "Average Rate",
+                        format="$%.2f"
+                    )
+                }
+            )
+            
+            # Download button for client metrics
+            csv = client_metrics.to_csv().encode('utf-8')
+            st.download_button(
+                label="Download Client Metrics CSV",
+                data=csv,
+                file_name="client_metrics.csv",
+                mime="text/csv",
             )
         
-        # Attorney performance chart
-        st.plotly_chart(
-            create_attorney_performance(filtered_df),
-            use_container_width=True
-        )
+        with main_tabs[2]:  # Attorney Analysis Tab
+            st.plotly_chart(
+                create_attorney_performance(filtered_df),
+                use_container_width=True
+            )
+            
+            # Attorney Metrics Table
+            st.subheader("Attorney Metrics")
+            attorney_metrics = filtered_df.groupby('User full name (first, last)').agg({
+                'Billable hours': 'sum',
+                'Non-billable hours': 'sum',
+                'Billed hours': 'sum',
+                'Billable hours amount': 'sum',
+                'Billed hours amount': 'sum'
+            }).round(2)
+            
+            st.dataframe(attorney_metrics)
         
-        # Detailed metrics table
-        st.header("Detailed Metrics")
-        attorney_metrics = filtered_df.groupby('User full name (first, last)').agg({
-            'Billable hours': 'sum',
-            'Non-billable hours': 'sum',
-            'Billed hours': 'sum',
-            'Billable hours amount': 'sum',
-            'Billed hours amount': 'sum'
-        }).round(2)
-        
-        st.dataframe(attorney_metrics)
+        with main_tabs[3]:  # Trending Tab
+            st.plotly_chart(
+                create_trending_chart(filtered_df),
+                use_container_width=True
+            )
 
 if __name__ == "__main__":
     main()
