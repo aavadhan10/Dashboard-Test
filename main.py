@@ -466,7 +466,7 @@ def create_client_metrics_table(df):
 
 def main():
     st.set_page_config(page_title="Legal Dashboard", layout="wide")
-    st.title("Legal Practice Management Dashboard")
+    st.title("Scale Management Dashboard")
     
     # Add refresh date to header
     st.markdown(
