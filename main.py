@@ -5,22 +5,30 @@ import plotly.graph_objects as go
 from datetime import datetime
 import calendar
 
-def load_and_process_data(file):
-    """Load and process the CSV file."""
-    df = pd.read_csv(file)
-    
-    # Convert date columns to datetime
-    df['Activity date'] = pd.to_datetime(df['Activity date'])
-    if 'Matter pending date' in df.columns:
-        df['Matter pending date'] = pd.to_datetime(df['Matter pending date'])
-    if 'Matter close date' in df.columns:
-        df['Matter close date'] = pd.to_datetime(df['Matter close date'])
-    
-    # Calculate additional metrics
-    df['Total hours'] = df['Billable hours'] + df['Non-billable hours']
-    df['Utilization rate'] = (df['Billable hours'] / df['Total hours'] * 100).fillna(0)
-    
-    return df
+# Constants
+GITHUB_CSV_URL = "https://raw.githubusercontent.com/[your-username]/[your-repo]/main/Test.csv"
+
+def load_and_process_data():
+    """Load and process the CSV file from GitHub."""
+    try:
+        # Load the CSV file directly
+        df = pd.read_csv('Test.csv')
+        
+        # Convert date columns to datetime
+        df['Activity date'] = pd.to_datetime(df['Activity date'])
+        if 'Matter pending date' in df.columns:
+            df['Matter pending date'] = pd.to_datetime(df['Matter pending date'])
+        if 'Matter close date' in df.columns:
+            df['Matter close date'] = pd.to_datetime(df['Matter close date'])
+        
+        # Calculate additional metrics
+        df['Total hours'] = df['Billable hours'] + df['Non-billable hours']
+        df['Utilization rate'] = (df['Billable hours'] / df['Total hours'] * 100).fillna(0)
+        
+        return df
+    except Exception as e:
+        st.error(f"Error loading data: {str(e)}")
+        return None
 
 def create_sidebar_filters(df):
     """Create comprehensive sidebar filters."""
@@ -79,15 +87,17 @@ def create_sidebar_filters(df):
             options=sorted(df['Matter status'].dropna().unique())
         )
         
-        selected_matter_stage = st.multiselect(
-            "Matter Stage",
-            options=sorted(df['Matter stage'].dropna().unique())
-        )
+        if 'Matter stage' in df.columns:
+            selected_matter_stage = st.multiselect(
+                "Matter Stage",
+                options=sorted(df['Matter stage'].dropna().unique())
+            )
         
-        billable_matter = st.multiselect(
-            "Billable Matter",
-            options=sorted(df['Billable matter'].dropna().unique())
-        )
+        if 'Billable matter' in df.columns:
+            billable_matter = st.multiselect(
+                "Billable Matter",
+                options=sorted(df['Billable matter'].dropna().unique())
+            )
 
     # Display refresh information
     st.sidebar.markdown("---")
@@ -103,8 +113,8 @@ def create_sidebar_filters(df):
         'practice_areas': selected_practice_areas,
         'locations': selected_locations if 'Matter location' in df.columns else [],
         'matter_status': selected_matter_status,
-        'matter_stage': selected_matter_stage,
-        'billable_matter': billable_matter
+        'matter_stage': selected_matter_stage if 'Matter stage' in df.columns else [],
+        'billable_matter': billable_matter if 'Billable matter' in df.columns else []
     }
 
 def filter_data(df, filters):
@@ -248,11 +258,10 @@ def main():
         unsafe_allow_html=True
     )
     
-    uploaded_file = st.file_uploader("Upload your CSV file", type=['csv'])
+    # Load data directly
+    df = load_and_process_data()
     
-    if uploaded_file is not None:
-        df = load_and_process_data(uploaded_file)
-        
+    if df is not None:
         # Data range info
         st.info("Current data covers: November 2024 - December 16, 2024")
         
