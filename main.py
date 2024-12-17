@@ -11,8 +11,10 @@ def load_and_process_data(file):
     
     # Convert date columns to datetime
     df['Activity date'] = pd.to_datetime(df['Activity date'])
-    df['Matter pending date'] = pd.to_datetime(df['Matter pending date'])
-    df['Matter close date'] = pd.to_datetime(df['Matter close date'])
+    if 'Matter pending date' in df.columns:
+        df['Matter pending date'] = pd.to_datetime(df['Matter pending date'])
+    if 'Matter close date' in df.columns:
+        df['Matter close date'] = pd.to_datetime(df['Matter close date'])
     
     # Calculate additional metrics
     df['Total hours'] = df['Billable hours'] + df['Non-billable hours']
@@ -21,47 +23,121 @@ def load_and_process_data(file):
     return df
 
 def create_sidebar_filters(df):
-    """Create sidebar filters."""
+    """Create comprehensive sidebar filters."""
     st.sidebar.header("Filters")
     
-    # Time period filters
-    selected_year = st.sidebar.selectbox(
-        "Select Year",
-        options=sorted(df['Activity year'].unique()),
-        index=len(df['Activity year'].unique()) - 1
-    )
+    # Create tabs for filter categories
+    filter_tabs = st.sidebar.tabs(["Time", "Attorneys", "Practice", "Matter"])
     
-    selected_quarter = st.sidebar.selectbox(
-        "Select Quarter",
-        options=sorted(df['Activity quarter'].unique())
-    )
-    
-    # Practice area filter
-    practice_areas = st.sidebar.multiselect(
-        "Select Practice Areas",
-        options=sorted(df['Practice area'].dropna().unique())
-    )
-    
-    # Attorney filter
-    attorneys = st.sidebar.multiselect(
-        "Select Attorneys",
-        options=sorted(df['User full name (first, last)'].unique())
-    )
-    
-    return selected_year, selected_quarter, practice_areas, attorneys
+    with filter_tabs[0]:  # Time Filters
+        st.subheader("Time Period")
+        selected_year = st.selectbox(
+            "Year",
+            options=sorted(df['Activity year'].unique()),
+            index=len(df['Activity year'].unique()) - 1
+        )
+        
+        selected_quarter = st.selectbox(
+            "Quarter",
+            options=sorted(df['Activity quarter'].unique())
+        )
+        
+        selected_months = st.multiselect(
+            "Months",
+            options=sorted(df['Activity month'].unique())
+        )
 
-def filter_data(df, year, quarter, practice_areas, attorneys):
-    """Apply filters to the dataframe."""
+    with filter_tabs[1]:  # Attorney Filters
+        st.subheader("Attorney Information")
+        selected_attorneys = st.multiselect(
+            "Attorneys",
+            options=sorted(df['User full name (first, last)'].unique())
+        )
+        
+        selected_originating = st.multiselect(
+            "Originating Attorneys",
+            options=sorted(df['Originating attorney'].dropna().unique())
+        )
+
+    with filter_tabs[2]:  # Practice Filters
+        st.subheader("Practice Areas")
+        selected_practice_areas = st.multiselect(
+            "Practice Areas",
+            options=sorted(df['Practice area'].dropna().unique())
+        )
+        
+        if 'Matter location' in df.columns:
+            selected_locations = st.multiselect(
+                "Locations",
+                options=sorted(df['Matter location'].dropna().unique())
+            )
+
+    with filter_tabs[3]:  # Matter Filters
+        st.subheader("Matter Details")
+        selected_matter_status = st.multiselect(
+            "Matter Status",
+            options=sorted(df['Matter status'].dropna().unique())
+        )
+        
+        selected_matter_stage = st.multiselect(
+            "Matter Stage",
+            options=sorted(df['Matter stage'].dropna().unique())
+        )
+        
+        billable_matter = st.multiselect(
+            "Billable Matter",
+            options=sorted(df['Billable matter'].dropna().unique())
+        )
+
+    # Display refresh information
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**Last Data Refresh:** December 16, 2024")
+    st.sidebar.markdown("**Data Range:** November 2024 - Present")
+
+    return {
+        'year': selected_year,
+        'quarter': selected_quarter,
+        'months': selected_months,
+        'attorneys': selected_attorneys,
+        'originating_attorneys': selected_originating,
+        'practice_areas': selected_practice_areas,
+        'locations': selected_locations if 'Matter location' in df.columns else [],
+        'matter_status': selected_matter_status,
+        'matter_stage': selected_matter_stage,
+        'billable_matter': billable_matter
+    }
+
+def filter_data(df, filters):
+    """Apply all filters to the dataframe."""
     filtered_df = df.copy()
     
-    filtered_df = filtered_df[filtered_df['Activity year'] == year]
-    filtered_df = filtered_df[filtered_df['Activity quarter'] == quarter]
+    # Time filters
+    if filters['year']:
+        filtered_df = filtered_df[filtered_df['Activity year'] == filters['year']]
+    if filters['quarter']:
+        filtered_df = filtered_df[filtered_df['Activity quarter'] == filters['quarter']]
+    if filters['months']:
+        filtered_df = filtered_df[filtered_df['Activity month'].isin(filters['months'])]
     
-    if practice_areas:
-        filtered_df = filtered_df[filtered_df['Practice area'].isin(practice_areas)]
+    # Attorney filters
+    if filters['attorneys']:
+        filtered_df = filtered_df[filtered_df['User full name (first, last)'].isin(filters['attorneys'])]
+    if filters['originating_attorneys']:
+        filtered_df = filtered_df[filtered_df['Originating attorney'].isin(filters['originating_attorneys'])]
     
-    if attorneys:
-        filtered_df = filtered_df[filtered_df['User full name (first, last)'].isin(attorneys)]
+    # Practice area filters
+    if filters['practice_areas']:
+        filtered_df = filtered_df[filtered_df['Practice area'].isin(filters['practice_areas'])]
+    if filters['locations']:
+        filtered_df = filtered_df[filtered_df['Matter location'].isin(filters['locations'])]
+    
+    # Matter filters
+    if filters['matter_status']:
+        filtered_df = filtered_df[filtered_df['Matter status'].isin(filters['matter_status'])]
+    if filters['matter_stage']:
+        filtered_df = filtered_df[filtered_df['Matter stage'].isin(filters['matter_stage'])]
+    if filters['billable_matter']:
+        filtered_df = filtered_df[filtered_df['Billable matter'].isin(filters['billable_matter'])]
     
     return filtered_df
 
@@ -162,14 +238,36 @@ def main():
     st.set_page_config(page_title="Legal Dashboard", layout="wide")
     st.title("Legal Practice Management Dashboard")
     
+    # Add refresh date to header
+    st.markdown(
+        """
+        <div style='text-align: right; color: gray; font-size: 0.8em;'>
+        Last Refresh: December 16, 2024
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    
     uploaded_file = st.file_uploader("Upload your CSV file", type=['csv'])
     
     if uploaded_file is not None:
         df = load_and_process_data(uploaded_file)
         
+        # Data range info
+        st.info("Current data covers: November 2024 - December 16, 2024")
+        
+        # Get filters
+        filters = create_sidebar_filters(df)
+        
         # Apply filters
-        year, quarter, practice_areas, attorneys = create_sidebar_filters(df)
-        filtered_df = filter_data(df, year, quarter, practice_areas, attorneys)
+        filtered_df = filter_data(df, filters)
+        
+        # Show active filters
+        active_filters = {k: v for k, v in filters.items() if v}
+        if active_filters:
+            st.markdown("### Active Filters")
+            for filter_name, filter_value in active_filters.items():
+                st.markdown(f"**{filter_name.replace('_', ' ').title()}:** {', '.join(map(str, filter_value)) if isinstance(filter_value, list) else filter_value}")
         
         # Display metrics and charts
         display_key_metrics(filtered_df)
@@ -182,7 +280,7 @@ def main():
                 create_hours_distribution(filtered_df),
                 use_container_width=True
             )
-            
+        
         with col2:
             st.plotly_chart(
                 create_practice_area_analysis(filtered_df),
