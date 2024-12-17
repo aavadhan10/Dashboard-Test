@@ -18,6 +18,9 @@ def load_and_process_data():
         if 'Matter close date' in df.columns:
             df['Matter close date'] = pd.to_datetime(df['Matter close date'])
         
+        # Convert Matter description to string
+        df['Matter description'] = df['Matter description'].fillna('').astype(str)
+        
         # Calculate additional metrics
         df['Total hours'] = df['Billable hours'] + df['Non-billable hours']
         df['Utilization rate'] = (df['Billable hours'] / df['Total hours'] * 100).fillna(0)
@@ -399,7 +402,6 @@ def create_trending_chart(df):
         yaxis_title='Hours'
     )
     return fig
-
 def create_client_metrics_table(df):
     """Create detailed client metrics table."""
     client_metrics = df.groupby('Matter description').agg({
@@ -536,6 +538,15 @@ def main():
             }).round(2)
             
             st.dataframe(attorney_metrics)
+            
+            # Download button for attorney metrics
+            attorney_csv = attorney_metrics.to_csv().encode('utf-8')
+            st.download_button(
+                label="Download Attorney Metrics CSV",
+                data=attorney_csv,
+                file_name="attorney_metrics.csv",
+                mime="text/csv",
+            )
         
         with main_tabs[3]:  # Trending Tab
             st.plotly_chart(
