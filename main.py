@@ -483,7 +483,7 @@ def main():
     
     if df is not None:
         # Data range info
-        st.info("Current data covers: November 2024 - December 16, 2024")
+        st.info("Current data covers: November 1 2024 - December 16, 2024")
         
         # Get filters
         filters = create_sidebar_filters(df)
