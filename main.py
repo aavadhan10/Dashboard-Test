@@ -372,61 +372,49 @@ def filter_data(df, filters):
     """Apply all filters to the dataframe."""
     filtered_df = df.copy()
     
+    # Debug print
+    print("Initial data shape:", filtered_df.shape)
+    print("Initial attorney levels:", filtered_df['Attorney Level'].unique())
+    
     # Time filters
     if filters['year']:
         filtered_df = filtered_df[filtered_df['Activity year'] == filters['year']]
+        print(f"After year filter ({filters['year']}):", filtered_df.shape)
+    
     if filters['quarter']:
         filtered_df = filtered_df[filtered_df['Activity quarter'] == filters['quarter']]
+        print(f"After quarter filter ({filters['quarter']}):", filtered_df.shape)
+    
     if filters['months']:
         filtered_df = filtered_df[filtered_df['Activity month'].isin(filters['months'])]
+        print(f"After month filter ({filters['months']}):", filtered_df.shape)
+    
     if len(filters['date_range']) == 2:
         filtered_df = filtered_df[
             (filtered_df['Activity date'].dt.date >= filters['date_range'][0]) &
             (filtered_df['Activity date'].dt.date <= filters['date_range'][1])
         ]
+        print("After date range filter:", filtered_df.shape)
     
     # Attorney filters
-    if filters['attorney_level']:
+    if filters.get('attorney_level'):  # Using .get() to handle if key doesn't exist
+        print(f"Applying attorney level filter: {filters['attorney_level']}")
+        print("Available levels:", filtered_df['Attorney Level'].unique())
         filtered_df = filtered_df[filtered_df['Attorney Level'].isin(filters['attorney_level'])]
+        print("After attorney level filter:", filtered_df.shape)
+        
     if filters['attorneys']:
         filtered_df = filtered_df[filtered_df['User full name (first, last)'].isin(filters['attorneys'])]
+        print(f"After attorney filter ({filters['attorneys']}):", filtered_df.shape)
+    
     if filters['originating_attorneys']:
         filtered_df = filtered_df[filtered_df['Originating attorney'].isin(filters['originating_attorneys'])]
-    if filters['min_hours'] > 0:
-        attorney_hours = filtered_df.groupby('User full name (first, last)')['Billable hours'].sum()
-        valid_attorneys = attorney_hours[attorney_hours >= filters['min_hours']].index
-        filtered_df = filtered_df[filtered_df['User full name (first, last)'].isin(valid_attorneys)]
+        print(f"After originating attorney filter:", filtered_df.shape)
     
-    # Practice area filters
-    if filters['practice_areas']:
-        filtered_df = filtered_df[filtered_df['Practice area'].isin(filters['practice_areas'])]
-    if filters['locations']:
-        filtered_df = filtered_df[filtered_df['Matter location'].isin(filters['locations'])]
-    
-    # Matter filters
-    if filters['matter_status']:
-        filtered_df = filtered_df[filtered_df['Matter status'].isin(filters['matter_status'])]
-    if filters['matter_stage']:
-        filtered_df = filtered_df[filtered_df['Matter stage'].isin(filters['matter_stage'])]
-    if filters['billable_matter']:
-        filtered_df = filtered_df[filtered_df['Billable matter'].isin(filters['billable_matter'])]
-    
-    # Financial filters
-    if filters['min_amount'] > 0:
-        filtered_df = filtered_df[filtered_df['Billable hours amount'] >= filters['min_amount']]
-    if len(filters['rate_range']) == 2:
-        filtered_df = filtered_df[
-            (filtered_df['Billable hours amount'] >= filters['rate_range'][0]) &
-            (filtered_df['Billable hours amount'] <= filters['rate_range'][1])
-        ]
-    
-    # Client filters
-    if filters['clients']:
-        filtered_df = filtered_df[filtered_df['Matter description'].isin(filters['clients'])]
-    if filters['min_client_hours'] > 0:
-        client_hours = filtered_df.groupby('Matter description')['Billable hours'].sum()
-        valid_clients = client_hours[client_hours >= filters['min_client_hours']].index
-        filtered_df = filtered_df[filtered_df['Matter description'].isin(valid_clients)]
+    # Print final dataset info
+    print("\nFinal dataset shape:", filtered_df.shape)
+    print("Final attorney levels present:", filtered_df['Attorney Level'].unique())
+    print("Number of unique attorneys:", filtered_df['User full name (first, last)'].nunique())
     
     return filtered_df
 
