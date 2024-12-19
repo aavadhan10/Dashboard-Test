@@ -10,6 +10,7 @@ def load_and_process_data():
     try:
         # Load the CSV file directly
         df = pd.read_csv('Test.csv')
+        print("Initial data loaded:", df.shape)
         
         # Convert date columns to datetime
         df['Activity date'] = pd.to_datetime(df['Activity date'])
@@ -134,16 +135,35 @@ def load_and_process_data():
             'Zoe Rossolatos': 'Senior Counsel'
         }
         
+        # Debug print before adding attorney level
+        print("\nBefore adding attorney levels:")
+        print("Sample of attorneys:", df['User full name (first, last)'].unique()[:5])
+        
         # Add attorney level to dataframe
         df['Attorney Level'] = df['User full name (first, last)'].map(attorney_levels)
         
+        # Debug print after adding attorney level
+        print("\nAfter adding attorney levels:")
+        print("Unique attorney levels:", df['Attorney Level'].unique())
+        print("Number of null attorney levels:", df['Attorney Level'].isnull().sum())
+        
+        # For any null attorney levels, print the attorney names
+        if df['Attorney Level'].isnull().any():
+            print("\nAttorneys without levels:")
+            print(df[df['Attorney Level'].isnull()]['User full name (first, last)'].unique())
+        
         # Calculate additional metrics
         df['Total hours'] = df['Billable hours'] + df['Non-billable hours']
+        df['Tracked hours'] = df['Total hours']  # Make sure we have this for utilization calculation
         df['Utilization rate'] = (df['Billable hours'] / df['Total hours'] * 100).fillna(0)
+        
+        print("\nFinal data shape:", df.shape)
+        print("Sample of billable hours:", df['Billable hours'].head())
         
         return df
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
+        print(f"Error details: {str(e)}")
         return None
 
 def calculate_average_rate(df):
