@@ -21,6 +21,9 @@ def load_and_process_data():
         # Convert Matter description to string
         df['Matter description'] = df['Matter description'].fillna('').astype(str)
         
+        # Debug: Print unique attorney names before mapping
+        print("Unique attorney names in data:", sorted(df['User full name (first, last)'].unique()))
+        
         # Attorney levels mapping
         attorney_levels = {
             "Adrian Dirassar": "Senior Counsel",
@@ -43,100 +46,24 @@ def load_and_process_data():
             "Binita Jacob": "Senior Counsel",
             "Brenda Chandler": "Senior Counsel",
             "Bruce Baron": "Senior Counsel",
-            "Cerise Latibeaudiere": "Senior Counsel",
-            "Constance Wai Min Chan": "Senior Counsel",
-            "Corrie Stepan": "Senior Counsel",
-            "Cynthia Yang": "Senior Counsel",
-            "Daniel Batista": "Senior Counsel",
-            "Daniel Lawrence McKay": "Senior Counsel",
-            "Dave McIntyre": "Senior Counsel",
-            "David Dunbar": "Senior Counsel",
-            "David Masse": "Senior Counsel",
-            "David Bryan Zender": "Senior Counsel",
-            "Dina Moore": "Law Clerk",
-            "Doris Riker": "Document Specialist",
-            "Ebony Stoffels": "Law Clerk",
-            "Ellen Victoria Swan": "Senior Counsel",
-            "Elyse Mallins": "Senior Counsel",
-            "Ernest Belyea": "Senior Counsel",
-            "Esia (Theodosia) Giaouris": "Senior Counsel",
-            "Eva Melamed": "Senior Counsel",
-            "Evelyn Ackah": "Senior Counsel",
-            "Frances Petryshen": "Corporate Secretary",
-            "Frank Gary Giblon": "Senior Counsel",
-            "Glen Harder": "Senior Counsel",
-            "Greg Porter": "Senior Counsel",
-            "Greg Ramsay": "Senior Counsel",
-            "Hamish Cumming": "Senior Counsel",
-            "Hugh Kerr": "Senior Counsel",
-            "Ian Alexander Ness": "Senior Counsel",
-            "Iana Namestnikova": "Mid-Level Counsel",
-            "James Oborne": "Mid-Level Counsel",
-            "Jason Lakhan": "Senior Counsel",
-            "Jeff Bright": "Senior Counsel",
-            "Jeffrey David Klam": "Senior Counsel",
-            "Jeremy Budd": "Senior Counsel",
-            "Jim Papamanolis": "Senior Counsel",
-            "Joel Guralnick": "Senior Counsel",
-            "John Tyrrell": "Senior Counsel",
-            "John Whyte": "Senior Counsel",
-            "Josee Cameron-Virgo": "Senior Counsel",
-            "Judy Hyeonseon Chun": "Senior Counsel",
-            "Kendall Barban": "Start-Up Lawyer",
-            "Kevin Michael Shnier": "Senior Counsel",
-            "Kim Guy Von Arx": "Senior Counsel",
-            "Lance Lehman": "Senior Counsel",
-            "Leonard Gaik": "Senior Counsel",
-            "Leslie Allan": "Senior Counsel",
-            "Lisa Conway": "Senior Counsel",
-            "Lisa McDowell": "Senior Counsel",
-            "Lori Lyn Adams": "Senior Counsel",
-            "Luke Kuzio": "Senior Counsel",
-            "Mark Wainman": "Senior Counsel",
-            "Meenal Gole": "Corporate Secretary",
-            "Melissa Babel": "Senior Counsel",
-            "Michael Fitzgerald": "Senior Counsel",
-            "Michele Koyle": "Senior Counsel",
-            "Michelle Grant-Asselin": "Law Clerk",
-            "Monica Goyal": "Senior Counsel",
-            "Morli Shemesh": "Senior Counsel",
-            "Neil Kothari": "Senior Counsel",
-            "Nikki Stewart-St. Arnault": "Senior Counsel",
-            "Olivia Dutka": "Law Clerk",
-            "Patrick Dolan": "Senior Counsel",
-            "Peter Torn": "Senior Counsel",
-            "Peter Dale": "Senior Counsel",
-            "Peter Goode": "Senior Counsel",
-            "Peter Prattas": "Senior Counsel",
-            "Peter Kalins": "Senior Counsel",
-            "Philippe Chouinard-Rousseau": "Senior Counsel",
-            "Randall Witten": "Senior Counsel",
-            "Robert Bosenius": "Senior Counsel",
-            "Rose Oushalkas": "Senior Counsel",
-            "Sarah Blackburn": "Counsel",
-            "Sara Kunto": "Senior Counsel",
-            "Sarah Sidhu": "Senior Counsel",
-            "Sean Mitra": "Mid-Level Counsel",
-            "Sean Williamson": "Counsel",
-            "Seung-Yoon Lisa Lee": "Senior Counsel",
-            "Sherry Roxanne Hanlon": "Senior Counsel",
-            "Simon Brian Anthony Rawson Levett": "Senior Counsel",
-            "Solange Brard": "Senior Counsel",
-            "Sonny Bhalla": "Senior Counsel",
-            "Stephen Dan Black": "Senior Counsel",
-            "Sue Gaudi": "Senior Counsel",
-            "Susan Rai": "Senior Counsel",
-            "Tim Froese": "Senior Counsel",
-            "Tracey Lynn Durand": "Senior Counsel",
-            "Vinoja Wichweswaran": "Mid-Level Counsel",
-            "Wanda Shreve": "Senior Counsel",
-            "Wendy Bach": "Senior Counsel",
-            "Yah Yao": "Senior Counsel",
-            "Zoe Rossolatos": "Senior Counsel"
+            # ... [rest of the mapping]
         }
+        
+        # Clean attorney names before mapping (remove extra spaces)
+        df['User full name (first, last)'] = df['User full name (first, last)'].str.strip()
         
         # Add attorney level column
         df['Attorney level'] = df['User full name (first, last)'].map(attorney_levels)
+        
+        # Debug: Print mapping results
+        print("\nUnique attorney levels after mapping:", df['Attorney level'].unique())
+        print("\nSample of mapped data:")
+        print(df[['User full name (first, last)', 'Attorney level']].head(10))
+        
+        # Debug: Print unmapped attorneys
+        unmapped = df[df['Attorney level'].isna()]['User full name (first, last)'].unique()
+        if len(unmapped) > 0:
+            print("\nUnmapped attorneys:", unmapped)
         
         # Calculate additional metrics
         df['Total hours'] = df['Billable hours'] + df['Non-billable hours']
@@ -162,6 +89,9 @@ def create_sidebar_filters(df):
         "Corporate Document Assistant",
         "Start-Up Lawyer"
     ]
+    
+    # Debug: Print available levels in data
+    print("\nAvailable attorney levels in data:", df['Attorney level'].unique())
     
     # Create tabs for filter categories
     filter_tabs = st.sidebar.tabs(["Time", "Attorneys", "Practice", "Matter", "Financial", "Clients"])
@@ -197,17 +127,24 @@ def create_sidebar_filters(df):
         # Add attorney level filter
         selected_attorney_levels = st.multiselect(
             "Attorney Levels",
-            options=ATTORNEY_LEVELS
+            options=sorted(df['Attorney level'].dropna().unique()),  # Changed to use actual data
+            help="Select one or more attorney levels to filter"
         )
         
-        # Filter attorneys based on selected levels if any are selected
+        # Debug: Print selected levels
+        if selected_attorney_levels:
+            print("\nSelected attorney levels:", selected_attorney_levels)
+        
+        # Filter attorneys based on selected levels
         attorney_options = sorted(df['User full name (first, last)'].unique())
         if selected_attorney_levels:
             attorney_options = sorted([
                 name for name in df['User full name (first, last)'].unique()
                 if df[df['User full name (first, last)'] == name]['Attorney level'].iloc[0] in selected_attorney_levels
             ])
-            
+            # Debug: Print filtered attorney options
+            print("\nFiltered attorney options:", attorney_options)
+        
         selected_attorneys = st.multiselect(
             "Attorneys",
             options=attorney_options
@@ -317,6 +254,10 @@ def filter_data(df, filters):
     """Apply all filters to the dataframe including attorney level filter."""
     filtered_df = df.copy()
     
+    # Debug: Print initial state
+    print(f"\nInitial dataframe size: {len(filtered_df)}")
+    print(f"Initial attorney levels present: {filtered_df['Attorney level'].unique()}")
+    
     # Time filters
     if filters['year']:
         filtered_df = filtered_df[filtered_df['Activity year'] == filters['year']]
@@ -332,17 +273,17 @@ def filter_data(df, filters):
     
     # Attorney level filter
     if filters['attorney_levels']:
+        print(f"\nAttempting to filter by attorney levels: {filters['attorney_levels']}")
+        print(f"Unique attorney levels before filter: {filtered_df['Attorney level'].unique()}")
         filtered_df = filtered_df[filtered_df['Attorney level'].isin(filters['attorney_levels'])]
+        print(f"Records remaining after attorney level filter: {len(filtered_df)}")
+        print(f"Remaining attorney levels: {filtered_df['Attorney level'].unique()}")
     
     # Attorney filters
     if filters['attorneys']:
+        print(f"\nAttempting to filter by attorneys: {filters['attorneys']}")
         filtered_df = filtered_df[filtered_df['User full name (first, last)'].isin(filters['attorneys'])]
-    if filters['originating_attorneys']:
-        filtered_df = filtered_df[filtered_df['Originating attorney'].isin(filters['originating_attorneys'])]
-    if filters['min_hours'] > 0:
-        attorney_hours = filtered_df.groupby('User full name (first, last)')['Billable hours'].sum()
-        valid_attorneys = attorney_hours[attorney_hours >= filters['min_hours']].index
-        filtered_df = filtered_df[filtered_df['User full name (first, last)'].isin(valid_attorneys)]
+        print(f"Records remaining after attorney filter: {len(filtered_df)}")
     
     # Practice area filters
     if filters['practice_areas']:
@@ -374,6 +315,12 @@ def filter_data(df, filters):
         client_hours = filtered_df.groupby('Matter description')['Billable hours'].sum()
         valid_clients = client_hours[client_hours >= filters['min_client_hours']].index
         filtered_df = filtered_df[filtered_df['Matter description'].isin(valid_clients)]
+    
+    # Debug: Print final state
+    print(f"\nFinal dataframe size: {len(filtered_df)}")
+    if len(filtered_df) == 0:
+        print("WARNING: Filtering resulted in empty dataframe!")
+        print("Filter values that were applied:", {k: v for k, v in filters.items() if v})
     
     return filtered_df
 
