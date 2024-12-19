@@ -10,7 +10,6 @@ def load_and_process_data():
     try:
         # Load the CSV file directly
         df = pd.read_csv('Test.csv')
-        print("Initial data loaded:", df.shape)
         
         # Convert date columns to datetime
         df['Activity date'] = pd.to_datetime(df['Activity date'])
@@ -22,216 +21,14 @@ def load_and_process_data():
         # Convert Matter description to string
         df['Matter description'] = df['Matter description'].fillna('').astype(str)
         
-        # Add attorney level mapping
-        attorney_levels = {
-            'Adrian Dirassar': 'Senior Counsel',
-            'Adrian Roomes': 'Mid-Level Counsel',
-            'Ajay Krishnan': 'Mid-Level Counsel',
-            'Alexander James Stack': 'Senior Counsel',
-            'Aliza Dason': 'Counsel',
-            'Andrea Freund': 'Senior Counsel',
-            'Alan Sless': 'Senior Counsel',
-            'Annie Belecki': 'Senior Counsel',
-            'Anjali Ekta Banka': 'Senior Counsel',
-            'Anthony Shapiro': 'Senior Counsel',
-            'Antoine Malek': 'Senior Counsel',
-            'April Pettigrew': 'Corporate Document Assistant',
-            'Avril Hasselfield': 'Senior Counsel',
-            'Benjamin Derek Rovet': 'Senior Counsel',
-            'Beth Gearing': 'Senior Counsel',
-            'Bill Stanger': 'Senior Counsel',
-            'Bill Herman': 'Senior Counsel',
-            'Binita Jacob': 'Senior Counsel',
-            'Brenda Chandler': 'Senior Counsel',
-            'Bruce Baron': 'Senior Counsel',
-            'Cerise Latibeaudiere': 'Senior Counsel',
-            'Constance Wai Min Chan': 'Senior Counsel',
-            'Corrie Stepan': 'Senior Counsel',
-            'Cynthia Yang': 'Senior Counsel',
-            'Daniel Batista': 'Senior Counsel',
-            'Daniel Lawrence McKay': 'Senior Counsel',
-            'Dave McIntyre': 'Senior Counsel',
-            'David Dunbar': 'Senior Counsel',
-            'David Masse': 'Senior Counsel',
-            'David Bryan Zender': 'Senior Counsel',
-            'Dina Moore': 'Law Clerk',
-            'Doris Riker': 'Document Specialist',
-            'Ebony Stoffels': 'Law Clerk',
-            'Ellen Victoria Swan': 'Senior Counsel',
-            'Elyse Mallins': 'Senior Counsel',
-            'Ernest Belyea': 'Senior Counsel',
-            'Esia (Theodosia) Giaouris': 'Senior Counsel',
-            'Eva Melamed': 'Senior Counsel',
-            'Evelyn Ackah': 'Senior Counsel',
-            'Frances Petryshen': 'Corporate Secretary',
-            'Frank Gary Giblon': 'Senior Counsel',
-            'Glen Harder': 'Senior Counsel',
-            'Greg Porter': 'Senior Counsel',
-            'Greg Ramsay': 'Senior Counsel',
-            'Hamish Cumming': 'Senior Counsel',
-            'Hugh Kerr': 'Senior Counsel',
-            'Ian Alexander Ness': 'Senior Counsel',
-            'Iana Namestnikova': 'Mid-Level Counsel',
-            'James Oborne': 'Mid-Level Counsel',
-            'Jason Lakhan': 'Senior Counsel',
-            'Jeff Bright': 'Senior Counsel',
-            'Jeffrey David Klam': 'Senior Counsel',
-            'Jeremy Budd': 'Senior Counsel',
-            'Joel Guralnick': 'Senior Counsel',
-            'John Tyrrell': 'Senior Counsel',
-            'John Whyte': 'Senior Counsel',
-            'Josee Cameron-Virgo': 'Senior Counsel',
-            'Judy Hyeonseon Chun': 'Senior Counsel',
-            'Kendall Barban': 'Start-Up Lawyer',
-            'Kevin Michael Shnier': 'Senior Counsel',
-            'Kim Guy Von Arx': 'Senior Counsel',
-            'Lance Lehman': 'Senior Counsel',
-            'Leonard Gaik': 'Senior Counsel',
-            'Leslie Allan': 'Senior Counsel',
-            'Lisa Conway': 'Senior Counsel',
-            'Lisa McDowell': 'Senior Counsel',
-            'Lori Lyn Adams': 'Senior Counsel',
-            'Luke Kuzio': 'Senior Counsel',
-            'Mark Wainman': 'Senior Counsel',
-            'Meenal Gole': 'Corporate Secretary',
-            'Melissa Babel': 'Senior Counsel',
-            'Michael Fitzgerald': 'Senior Counsel',
-            'Michele Koyle': 'Senior Counsel',
-            'Michelle Grant-Asselin': 'Law Clerk',
-            'Monica Goyal': 'Senior Counsel',
-            'Morli Shemesh': 'Senior Counsel',
-            'Neil Kothari': 'Senior Counsel',
-            'Nikki Stewart-St. Arnault': 'Senior Counsel',
-            'Olivia Dutka': 'Law Clerk',
-            'Patrick Dolan': 'Senior Counsel',
-            'Peter Torn': 'Senior Counsel',
-            'Peter Dale': 'Senior Counsel',
-            'Peter Goode': 'Senior Counsel',
-            'Peter Prattas': 'Senior Counsel',
-            'Peter Kalins': 'Senior Counsel',
-            'Philippe Chouinard-Rousseau': 'Senior Counsel',
-            'Randall Witten': 'Senior Counsel',
-            'Robert Bosenius': 'Senior Counsel',
-            'Rose Oushalkas': 'Senior Counsel',
-            'Sarah Blackburn': 'Counsel',
-            'Sara Kunto': 'Senior Counsel',
-            'Sarah Sidhu': 'Senior Counsel',
-            'Sean Mitra': 'Mid-Level Counsel',
-            'Sean Williamson': 'Counsel',
-            'Seung-Yoon Lisa Lee': 'Senior Counsel',
-            'Sherry Roxanne Hanlon': 'Senior Counsel',
-            'Simon Brian Anthony Rawson Levett': 'Senior Counsel',
-            'Solange Brard': 'Senior Counsel',
-            'Sonny Bhalla': 'Senior Counsel',
-            'Stephen Dan Black': 'Senior Counsel',
-            'Sue Gaudi': 'Senior Counsel',
-            'Susan Rai': 'Senior Counsel',
-            'Tim Froese': 'Senior Counsel',
-            'Tracey Lynn Durand': 'Senior Counsel',
-            'Vinoja Wichweswaran': 'Mid-Level Counsel',
-            'Wanda Shreve': 'Senior Counsel',
-            'Wendy Bach': 'Senior Counsel',
-            'Yah Yao': 'Senior Counsel',
-            'Zoe Rossolatos': 'Senior Counsel'
-        }
-        
-        # Debug print before adding attorney level
-        print("\nBefore adding attorney levels:")
-        print("Sample of attorneys:", df['User full name (first, last)'].unique()[:5])
-        
-        # Add attorney level to dataframe
-        df['Attorney Level'] = df['User full name (first, last)'].map(attorney_levels)
-        
-        # Debug print after adding attorney level
-        print("\nAfter adding attorney levels:")
-        print("Unique attorney levels:", df['Attorney Level'].unique())
-        print("Number of null attorney levels:", df['Attorney Level'].isnull().sum())
-        
-        # For any null attorney levels, print the attorney names
-        if df['Attorney Level'].isnull().any():
-            print("\nAttorneys without levels:")
-            print(df[df['Attorney Level'].isnull()]['User full name (first, last)'].unique())
-        
         # Calculate additional metrics
         df['Total hours'] = df['Billable hours'] + df['Non-billable hours']
-        df['Tracked hours'] = df['Total hours']  # Make sure we have this for utilization calculation
         df['Utilization rate'] = (df['Billable hours'] / df['Total hours'] * 100).fillna(0)
-        
-        print("\nFinal data shape:", df.shape)
-        print("Sample of billable hours:", df['Billable hours'].head())
         
         return df
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
-        print(f"Error details: {str(e)}")
         return None
-
-def calculate_average_rate(df):
-    """
-    Calculate average rate excluding flat fees and expenses.
-    Flat fees are identified as entries with 0 or 1 hours and amount >= 1500
-    """
-    # Create a mask for flat fee entries
-    flat_fee_mask = (
-        ((df['Billable hours'] <= 1) & (df['Billable hours amount'] >= 1500)) |
-        (df['Billable hours'] == 0)
-    )
-    
-    # Filter out flat fees
-    billable_df = df[~flat_fee_mask]
-    
-    # Calculate average rate
-    if billable_df['Billable hours'].sum() > 0:
-        return billable_df['Billable hours amount'].sum() / billable_df['Billable hours'].sum()
-    return 0
-
-def calculate_utilization_rate(df):
-    """
-    Calculate utilization rate with different targets based on attorney level:
-    - Counsel/Senior Counsel/Mid-Level Counsel: 80 billable hours per month target
-    - Others: 160 total hours per month target
-    """
-    # Get unique months in the dataset
-    months = len(df['Activity date'].dt.to_period('M').unique())
-    
-    # Calculate totals per attorney
-    total_rate = 0
-    num_attorneys = 0
-    
-    for attorney, attorney_df in df.groupby('User full name (first, last)'):
-        level = attorney_df['Attorney Level'].iloc[0]
-        
-        if level in ['Senior Counsel', 'Counsel', 'Mid-Level Counsel']:
-            # For counsel: 80 billable hours per month target
-            target = 80 * months
-            actual = attorney_df['Billable hours'].sum()
-        else:
-            # For others: 160 total hours per month target
-            target = 160 * months
-            actual = attorney_df['Tracked hours'].sum()
-        
-        if target > 0:
-            attorney_rate = (actual / target) * 100
-            total_rate += attorney_rate
-            num_attorneys += 1
-    
-    # Calculate average utilization rate across all attorneys
-    return total_rate / num_attorneys if num_attorneys > 0 else 0
-
-def calculate_origination_stats(df, attorney_name):
-    """
-    Calculate stats for hours worked by others on originated files
-    """
-    # Filter for matters originated by the attorney
-    originated_matters = df[df['Originating attorney'] == attorney_name]
-    
-    # Calculate hours worked by others on these matters
-    others_hours = originated_matters[
-        originated_matters['User full name (first, last)'] != attorney_name
-    ]['Billable hours'].sum()
-    
-    return others_hours
-    
 def create_sidebar_filters(df):
     """Create comprehensive sidebar filters."""
     st.sidebar.header("Filters")
@@ -267,26 +64,9 @@ def create_sidebar_filters(df):
 
     with filter_tabs[1]:  # Attorney Filters
         st.subheader("Attorney Information")
-        
-        # Add attorney level filter
-        selected_level = st.multiselect(
-            "Attorney Level",
-            options=['Senior Counsel', 'Mid-Level Counsel', 'Counsel', 'Law Clerk', 
-                    'Corporate Document Assistant', 'Document Specialist', 
-                    'Corporate Secretary', 'Start-Up Lawyer'],
-            default=['Senior Counsel', 'Mid-Level Counsel', 'Counsel']
-        )
-        
-        # Filter attorneys based on selected levels, but handle empty selection
-        if selected_level:
-            filtered_attorneys = df[df['Attorney Level'].isin(selected_level)]['User full name (first, last)'].unique()
-        else:
-            filtered_attorneys = df['User full name (first, last)'].unique()
-        
         selected_attorneys = st.multiselect(
             "Attorneys",
-            options=sorted(filtered_attorneys),
-            key="attorney_selector"  # Add a unique key
+            options=sorted(df['User full name (first, last)'].unique())
         )
         
         selected_originating = st.multiselect(
@@ -374,7 +154,6 @@ def create_sidebar_filters(df):
         'quarter': selected_quarter,
         'months': selected_months,
         'date_range': date_range,
-        'attorney_level': selected_level,
         'attorneys': selected_attorneys,
         'originating_attorneys': selected_originating,
         'min_hours': min_hours,
@@ -388,58 +167,69 @@ def create_sidebar_filters(df):
         'clients': selected_clients,
         'min_client_hours': min_client_hours
     }
+
 def filter_data(df, filters):
     """Apply all filters to the dataframe."""
     filtered_df = df.copy()
     
-    # Debug print
-    print("Initial data shape:", filtered_df.shape)
-    print("Initial attorney levels:", filtered_df['Attorney Level'].unique())
-    
     # Time filters
     if filters['year']:
         filtered_df = filtered_df[filtered_df['Activity year'] == filters['year']]
-        print(f"After year filter ({filters['year']}):", filtered_df.shape)
-    
     if filters['quarter']:
         filtered_df = filtered_df[filtered_df['Activity quarter'] == filters['quarter']]
-        print(f"After quarter filter ({filters['quarter']}):", filtered_df.shape)
-    
     if filters['months']:
         filtered_df = filtered_df[filtered_df['Activity month'].isin(filters['months'])]
-        print(f"After month filter ({filters['months']}):", filtered_df.shape)
-    
     if len(filters['date_range']) == 2:
         filtered_df = filtered_df[
             (filtered_df['Activity date'].dt.date >= filters['date_range'][0]) &
             (filtered_df['Activity date'].dt.date <= filters['date_range'][1])
         ]
-        print("After date range filter:", filtered_df.shape)
     
     # Attorney filters
-    if filters.get('attorney_level'):  # Using .get() to handle if key doesn't exist
-        print(f"Applying attorney level filter: {filters['attorney_level']}")
-        print("Available levels:", filtered_df['Attorney Level'].unique())
-        filtered_df = filtered_df[filtered_df['Attorney Level'].isin(filters['attorney_level'])]
-        print("After attorney level filter:", filtered_df.shape)
-        
     if filters['attorneys']:
         filtered_df = filtered_df[filtered_df['User full name (first, last)'].isin(filters['attorneys'])]
-        print(f"After attorney filter ({filters['attorneys']}):", filtered_df.shape)
-    
     if filters['originating_attorneys']:
         filtered_df = filtered_df[filtered_df['Originating attorney'].isin(filters['originating_attorneys'])]
-        print(f"After originating attorney filter:", filtered_df.shape)
+    if filters['min_hours'] > 0:
+        attorney_hours = filtered_df.groupby('User full name (first, last)')['Billable hours'].sum()
+        valid_attorneys = attorney_hours[attorney_hours >= filters['min_hours']].index
+        filtered_df = filtered_df[filtered_df['User full name (first, last)'].isin(valid_attorneys)]
     
-    # Print final dataset info
-    print("\nFinal dataset shape:", filtered_df.shape)
-    print("Final attorney levels present:", filtered_df['Attorney Level'].unique())
-    print("Number of unique attorneys:", filtered_df['User full name (first, last)'].nunique())
+    # Practice area filters
+    if filters['practice_areas']:
+        filtered_df = filtered_df[filtered_df['Practice area'].isin(filters['practice_areas'])]
+    if filters['locations']:
+        filtered_df = filtered_df[filtered_df['Matter location'].isin(filters['locations'])]
+    
+    # Matter filters
+    if filters['matter_status']:
+        filtered_df = filtered_df[filtered_df['Matter status'].isin(filters['matter_status'])]
+    if filters['matter_stage']:
+        filtered_df = filtered_df[filtered_df['Matter stage'].isin(filters['matter_stage'])]
+    if filters['billable_matter']:
+        filtered_df = filtered_df[filtered_df['Billable matter'].isin(filters['billable_matter'])]
+    
+    # Financial filters
+    if filters['min_amount'] > 0:
+        filtered_df = filtered_df[filtered_df['Billable hours amount'] >= filters['min_amount']]
+    if len(filters['rate_range']) == 2:
+        filtered_df = filtered_df[
+            (filtered_df['Billable hours amount'] >= filters['rate_range'][0]) &
+            (filtered_df['Billable hours amount'] <= filters['rate_range'][1])
+        ]
+    
+    # Client filters
+    if filters['clients']:
+        filtered_df = filtered_df[filtered_df['Matter description'].isin(filters['clients'])]
+    if filters['min_client_hours'] > 0:
+        client_hours = filtered_df.groupby('Matter description')['Billable hours'].sum()
+        valid_clients = client_hours[client_hours >= filters['min_client_hours']].index
+        filtered_df = filtered_df[filtered_df['Matter description'].isin(valid_clients)]
     
     return filtered_df
 
 def display_key_metrics(df):
-    """Display key metrics including utilization with appropriate targets."""
+    """Display key metrics in the top row."""
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -450,27 +240,32 @@ def display_key_metrics(df):
         )
     
     with col2:
-        avg_rate = calculate_average_rate(df)
         st.metric(
-            "Average Rate (Excl. Flat Fees)",
-            f"${avg_rate:.2f}/hr",
-            "billable rate"
+            "Total Billed Hours",
+            f"{df['Billed hours'].sum():,.1f}",
+            f"${df['Billed hours amount'].sum():,.2f}"
         )
     
     with col3:
-        utilization_rate = calculate_utilization_rate(df)
+        utilization_rate = (
+            df['Billable hours'].sum() / df['Tracked hours'].sum() * 100
+            if df['Tracked hours'].sum() > 0 else 0
+        )
         st.metric(
             "Utilization Rate",
             f"{utilization_rate:.1f}%",
-            "of target hours"
+            "of total hours"
         )
     
     with col4:
-        ytd_collections = df['Billed hours amount'].sum()
+        avg_rate = (
+            df['Billable hours amount'].sum() / df['Billable hours'].sum()
+            if df['Billable hours'].sum() > 0 else 0
+        )
         st.metric(
-            "YTD Collections",
-            f"${ytd_collections:,.2f}",
-            "year to date"
+            "Average Rate",
+            f"${avg_rate:.2f}/hr",
+            "billable rate"
         )
 def create_hours_distribution(df):
     """Create hours distribution chart."""
