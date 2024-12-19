@@ -323,7 +323,140 @@ def filter_data(df, filters):
         print("Filter values that were applied:", {k: v for k, v in filters.items() if v})
     
     return filtered_df
+def calculate_average_rate(df):
+    """
+    Calculate average rates excluding flat fees and expenses.
+    Flat fees are identified as entries with 0 or 1 billable hours and amount >= 1500
+    
+    Parameters:
+    df (pandas.DataFrame): DataFrame containing billing data
+    
+    Returns:
+    float: Average hourly rate excluding flat fees and expenses
+    """
+    # Create a copy to avoid modifying original data
+    calc_df = df.copy()
+    
+    # Create mask for flat fee entries
+    flat_fee_mask = (
+        ((calc_df['Billable hours'] <= 1) & (calc_df['Billable hours amount'] >= 1500)) |
+        (calc_df['Billable hours'] == 0)
+    )
+    
+    # Filter out flat fee entries
+    hourly_entries = calc_df[~flat_fee_mask]
+    
+    # Calculate average rate only for hourly entries
+    if len(hourly_entries) > 0 and hourly_entries['Billable hours'].sum() > 0:
+        avg_rate = (
+            hourly_entries['Billable hours amount'].sum() / 
+            hourly_entries['Billable hours'].sum()
+        )
+    else:
+        avg_rate = 0
+    
+    return round(avg_rate, 2)
 
+def create_client_metrics_table(df):
+    """Create detailed client metrics table with proper rate handling."""
+    # Group by client
+    client_groups = df.groupby('Matter description')
+    
+    # Initialize empty metrics dictionary
+    metrics = {}
+    
+    # Calculate metrics for each client
+    for client, client_df in client_groups:
+        billing_summary = get_billing_summary(client_df)
+        metrics[client] = {
+            'Billable hours': billing_summary['total_hours'],
+            'Billed hours': client_df['Billed hours'].sum(),
+            'Non-billable hours': client_df['Non-billable hours'].sum(),
+            'Billable hours amount': billing_summary['total_amount'],
+            'Flat fee amount': billing_summary['flat_fee_amount'],
+            'Average Rate': billing_summary['average_rate'],
+            'Tracked hours': client_df['Tracked hours'].sum()
+        }
+    
+    # Convert to DataFrame
+    client_metrics = pd.DataFrame.from_dict(metrics, orient='index')
+    
+    # Calculate additional metrics
+    client_metrics['Utilization Rate'] = (
+        client_metrics['Billable hours'] / client_metrics['Tracked hours'] * 100
+    ).round(2)
+    
+    return client_metrics
+
+def update_display_key_metrics(df):
+    """Display key metrics with proper rate calculation."""
+    col1, col2, col3, col4 = st.columns(4)
+    
+    # Calculate billing summary using the new logic
+    billing_summary = get_billing_summary(df)
+    
+    with col1:
+        st.metric(
+            "Total Billable Hours",
+            f"{billing_summary['total_hours']:,.1f}",
+            f"${billing_summary['total_amount']:,.2f}"
+        )
+    
+    with col2:
+        st.metric(
+            "Flat Fee Matters",
+            f"{billing_summary['flat_fee_count']}",
+            f"${billing_summary['flat_fee_amount']:,.2f}"
+        )
+    
+    with col3:
+        utilization_rate = (
+            billing_summary['total_hours'] / df['Tracked hours'].sum() * 100
+            if df['Tracked hours'].sum() > 0 else 0
+        )
+        st.metric(
+            "Utilization Rate",
+            f"{utilization_rate:.1f}%",
+            "of total hours"
+        )
+    
+    with col4:
+        st.metric(
+            "Average Rate",
+            f"${billing_summary['average_rate']}/hr",
+            "excluding flat fees"
+        )
+
+def get_billing_summary(df):
+    """
+    Get summary of billing metrics with proper handling of flat fees.
+    
+    Parameters:
+    df (pandas.DataFrame): DataFrame containing billing data
+    
+    Returns:
+    dict: Summary metrics including total hours, amounts, and average rates
+    """
+    # Create masks for different fee types
+    flat_fee_mask = (
+        ((df['Billable hours'] <= 1) & (df['Billable hours amount'] >= 1500)) |
+        (df['Billable hours'] == 0)
+    )
+    
+    # Split data into hourly and flat fee entries
+    hourly_entries = df[~flat_fee_mask]
+    flat_fee_entries = df[flat_fee_mask]
+    
+    # Calculate metrics
+    summary = {
+        'total_hours': hourly_entries['Billable hours'].sum(),
+        'total_amount': hourly_entries['Billable hours amount'].sum(),
+        'average_rate': calculate_average_rate(df),
+        'flat_fee_count': len(flat_fee_entries),
+        'flat_fee_amount': flat_fee_entries['Billable hours amount'].sum()
+    }
+    
+    return summary
 def create_attorney_level_distribution(df):
     """Create a new visualization showing distribution of hours by attorney level."""
     # Calculate metrics by attorney level
