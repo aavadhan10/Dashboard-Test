@@ -181,21 +181,6 @@ def create_sidebar_filters(df):
     """Create comprehensive sidebar filters including attorney level filter."""
     st.sidebar.header("Filters")
     
-    # Define attorney levels
-    ATTORNEY_LEVELS = [
-        "Senior Counsel",
-        "Mid-Level Counsel",
-        "Counsel",
-        "Law Clerk",
-        "Corporate Secretary",
-        "Document Specialist",
-        "Corporate Document Assistant",
-        "Start-Up Lawyer"
-    ]
-    
-    # Debug: Print available levels in data
-    print("\nAvailable attorney levels in data:", df['Attorney level'].unique())
-    
     # Create tabs for filter categories
     filter_tabs = st.sidebar.tabs(["Time", "Attorneys", "Practice", "Matter", "Financial", "Clients"])
     
@@ -227,30 +212,28 @@ def create_sidebar_filters(df):
     with filter_tabs[1]:  # Attorney Filters
         st.subheader("Attorney Information")
         
-        # Add attorney level filter
+        # Get actual attorney levels from the data
+        available_levels = sorted(df['Attorney level'].unique())
+        
+        # Debug print to see what levels are actually in the data
+        print("Available attorney levels in data:", available_levels)
+        
+        # Add attorney level filter using actual levels from data
         selected_attorney_levels = st.multiselect(
             "Attorney Levels",
-            options=sorted(df['Attorney level'].dropna().unique()),  # Changed to use actual data
+            options=available_levels,
             help="Select one or more attorney levels to filter"
         )
         
-        # Debug: Print selected levels
-        if selected_attorney_levels:
-            print("\nSelected attorney levels:", selected_attorney_levels)
-        
         # Filter attorneys based on selected levels
-        attorney_options = sorted(df['User full name (first, last)'].unique())
         if selected_attorney_levels:
-            attorney_options = sorted([
-                name for name in df['User full name (first, last)'].unique()
-                if df[df['User full name (first, last)'] == name]['Attorney level'].iloc[0] in selected_attorney_levels
-            ])
-            # Debug: Print filtered attorney options
-            print("\nFiltered attorney options:", attorney_options)
+            attorney_options = df[df['Attorney level'].isin(selected_attorney_levels)]['User full name (first, last)'].unique()
+        else:
+            attorney_options = df['User full name (first, last)'].unique()
         
         selected_attorneys = st.multiselect(
             "Attorneys",
-            options=attorney_options
+            options=sorted(attorney_options)
         )
         
         selected_originating = st.multiselect(
@@ -352,7 +335,6 @@ def create_sidebar_filters(df):
         'clients': selected_clients,
         'min_client_hours': min_client_hours
     }
-
 def filter_data(df, filters):
     """Apply all filters to the dataframe including attorney level filter."""
     filtered_df = df.copy()
