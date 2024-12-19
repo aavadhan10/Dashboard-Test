@@ -972,7 +972,7 @@ def main():
         if active_filters:
             st.markdown("### Active Filters")
             for filter_name, filter_value in active_filters.items():
-                st.markdown(f"**{filter_name.replace('_', ' ').title()}:** {', '.join(map(str, filter_value)) if isinstance(filter_value, list) else filter_value}")
+               # st.markdown(f"**{filter_name.replace('_', ' ').title()}:** {', '.join(map(str, filter_value)) if isinstance(filter_value, list) else filter_value}")
         
         # Display metrics and charts
         display_key_metrics(filtered_df)
