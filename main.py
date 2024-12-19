@@ -249,9 +249,22 @@ def create_sidebar_filters(df):
 
     with filter_tabs[1]:  # Attorney Filters
         st.subheader("Attorney Information")
+        
+        # Add attorney level filter
+        selected_level = st.multiselect(
+            "Attorney Level",
+            options=['Senior Counsel', 'Mid-Level Counsel', 'Counsel', 'Law Clerk', 
+                    'Corporate Document Assistant', 'Document Specialist', 
+                    'Corporate Secretary', 'Start-Up Lawyer'],
+            default=['Senior Counsel', 'Mid-Level Counsel', 'Counsel']
+        )
+        
+        # Filter attorneys based on selected levels
+        filtered_attorneys = df[df['Attorney Level'].isin(selected_level)]['User full name (first, last)'].unique()
+        
         selected_attorneys = st.multiselect(
             "Attorneys",
-            options=sorted(df['User full name (first, last)'].unique())
+            options=sorted(filtered_attorneys)
         )
         
         selected_originating = st.multiselect(
@@ -339,6 +352,7 @@ def create_sidebar_filters(df):
         'quarter': selected_quarter,
         'months': selected_months,
         'date_range': date_range,
+        'attorney_level': selected_level,
         'attorneys': selected_attorneys,
         'originating_attorneys': selected_originating,
         'min_hours': min_hours,
@@ -352,7 +366,6 @@ def create_sidebar_filters(df):
         'clients': selected_clients,
         'min_client_hours': min_client_hours
     }
-
 def filter_data(df, filters):
     """Apply all filters to the dataframe."""
     filtered_df = df.copy()
