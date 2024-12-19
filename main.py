@@ -164,7 +164,7 @@ def calculate_average_rate(df):
     if billable_df['Billable hours'].sum() > 0:
         return billable_df['Billable hours amount'].sum() / billable_df['Billable hours'].sum()
     return 0
-
+    
 def calculate_utilization_rate(df):
     """
     Calculate utilization rate based on attorney level:
@@ -199,6 +199,7 @@ def calculate_utilization_rate(df):
     
     # Calculate overall utilization rate
     return (total_actual_hours / total_target_hours * 100) if total_target_hours > 0 else 0
+
 
 def calculate_origination_stats(df, attorney_name):
     """
