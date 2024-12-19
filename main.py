@@ -161,6 +161,94 @@ def load_and_process_data():
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
         return None
+def get_monthly_target_and_hours(role):
+    """
+    Determine monthly target hours and which hours to count based on role.
+    
+    Args:
+        role (str): Attorney role/level
+        
+    Returns:
+        tuple: (monthly_target, count_all_hours)
+    """
+    role_lower = role.lower()
+    if any(title in role_lower for title in ['partner', 'counsel']):
+        return 80, False  # 80 hours target, only count billable
+    else:
+        return 160, True  # 160 hours target, count all hours
+
+def calculate_utilization_rate(row, monthly_target, count_all_hours):
+    """
+    Calculate utilization rate based on role-specific rules.
+    
+    Args:
+        row (Series): DataFrame row containing hours data
+        monthly_target (int): Monthly target hours
+        count_all_hours (bool): Whether to count all hours or just billable
+        
+    Returns:
+        float: Utilization rate as percentage
+    """
+    if count_all_hours:
+        actual_hours = row['Billable hours'] + row['Non-billable hours']
+    else:
+        actual_hours = row['Billable hours']
+        
+    return (actual_hours / monthly_target * 100).round(2)
+
+def calculate_attorney_utilization_metrics(df):
+    """
+    Calculate utilization metrics for attorneys based on their level.
+    
+    Args:
+        df (DataFrame): Input DataFrame with attorney data
+        
+    Returns:
+        DataFrame: DataFrame with calculated utilization metrics
+    """
+    # Group by attorney
+    attorney_metrics = df.groupby(['User full name (first, last)', 'Attorney level']).agg({
+        'Billable hours': 'sum',
+        'Non-billable hours': 'sum',
+        'Activity month': 'nunique'  # Count number of months
+    }).reset_index()
+    
+    # Calculate utilization rate based on role
+    def calc_utilization(row):
+        monthly_target, count_all = get_monthly_target_and_hours(row['Attorney level'])
+        total_target = monthly_target * row['Activity month']  # Adjust target for number of months
+        
+        if count_all:
+            actual_hours = row['Billable hours'] + row['Non-billable hours']
+        else:
+            actual_hours = row['Billable hours']
+            
+        return (actual_hours / total_target * 100).round(2)
+    
+    attorney_metrics['Utilization Rate'] = attorney_metrics.apply(calc_utilization, axis=1)
+    
+    return attorney_metrics
+
+def create_utilization_summary(df):
+    """
+    Create a summary of utilization rates by attorney level.
+    
+    Args:
+        df (DataFrame): Input DataFrame with attorney data
+        
+    Returns:
+        DataFrame: Summary DataFrame with utilization metrics by level
+    """
+    metrics = calculate_attorney_utilization_metrics(df)
+    
+    summary = metrics.groupby('Attorney level').agg({
+        'User full name (first, last)': 'count',
+        'Utilization Rate': ['mean', 'min', 'max']
+    }).round(2)
+    
+    summary.columns = ['Attorney Count', 'Avg Utilization', 'Min Utilization', 'Max Utilization']
+    
+    return summary
 
 def create_sidebar_filters(df):
     """Create comprehensive sidebar filters including attorney level filter."""
