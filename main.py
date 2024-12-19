@@ -148,8 +148,20 @@ def load_and_process_data():
         return None
 
 def create_sidebar_filters(df):
-    """Create comprehensive sidebar filters."""
+    """Create comprehensive sidebar filters including attorney level filter."""
     st.sidebar.header("Filters")
+    
+    # Define attorney levels
+    ATTORNEY_LEVELS = [
+        "Senior Counsel",
+        "Mid-Level Counsel",
+        "Counsel",
+        "Law Clerk",
+        "Corporate Secretary",
+        "Document Specialist",
+        "Corporate Document Assistant",
+        "Start-Up Lawyer"
+    ]
     
     # Create tabs for filter categories
     filter_tabs = st.sidebar.tabs(["Time", "Attorneys", "Practice", "Matter", "Financial", "Clients"])
@@ -172,7 +184,6 @@ def create_sidebar_filters(df):
             options=sorted(df['Activity month'].unique())
         )
         
-        # Add date range filter
         date_range = st.date_input(
             "Custom Date Range",
             value=(df['Activity date'].min(), df['Activity date'].max()),
@@ -182,9 +193,24 @@ def create_sidebar_filters(df):
 
     with filter_tabs[1]:  # Attorney Filters
         st.subheader("Attorney Information")
+        
+        # Add attorney level filter
+        selected_attorney_levels = st.multiselect(
+            "Attorney Levels",
+            options=ATTORNEY_LEVELS
+        )
+        
+        # Filter attorneys based on selected levels if any are selected
+        attorney_options = sorted(df['User full name (first, last)'].unique())
+        if selected_attorney_levels:
+            attorney_options = sorted([
+                name for name in df['User full name (first, last)'].unique()
+                if df[df['User full name (first, last)'] == name]['Attorney level'].iloc[0] in selected_attorney_levels
+            ])
+            
         selected_attorneys = st.multiselect(
             "Attorneys",
-            options=sorted(df['User full name (first, last)'].unique())
+            options=attorney_options
         )
         
         selected_originating = st.multiselect(
@@ -192,7 +218,6 @@ def create_sidebar_filters(df):
             options=sorted(df['Originating attorney'].dropna().unique())
         )
         
-        # Add minimum hours filter
         min_hours = st.slider(
             "Minimum Billable Hours",
             min_value=0.0,
@@ -267,11 +292,13 @@ def create_sidebar_filters(df):
     st.sidebar.markdown("**Last Data Refresh:** December 16, 2024")
     st.sidebar.markdown("**Data Range:** November 2024 - Present")
 
+    # Return all filter values
     return {
         'year': selected_year,
         'quarter': selected_quarter,
         'months': selected_months,
         'date_range': date_range,
+        'attorney_levels': selected_attorney_levels,
         'attorneys': selected_attorneys,
         'originating_attorneys': selected_originating,
         'min_hours': min_hours,
