@@ -29,6 +29,61 @@ def load_and_process_data():
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
         return None
+def calculate_average_rate(df):
+    """
+    Calculate average rate excluding flat fees and expenses.
+    Flat fees are identified as entries with 0 or 1 hours and amount >= 1500
+    """
+    # Create a mask for flat fee entries
+    flat_fee_mask = (
+        ((df['Billable hours'] <= 1) & (df['Billable hours amount'] >= 1500)) |
+        (df['Billable hours'] == 0)
+    )
+    
+    # Filter out flat fees
+    billable_df = df[~flat_fee_mask]
+    
+    # Calculate average rate
+    if billable_df['Billable hours'].sum() > 0:
+        return billable_df['Billable hours amount'].sum() / billable_df['Billable hours'].sum()
+    return 0
+
+def calculate_utilization_rate(df, role):
+    """
+    Calculate utilization rate based on role-specific requirements:
+    - Partners/Counsel: 80 billable hours per month
+    - Associates: 160 total hours per month (billable + non-billable)
+    """
+    if role.lower() in ['partner', 'counsel']:
+        monthly_target = 80
+        actual_hours = df['Billable hours'].sum()
+        # Calculate months in the dataset
+        months = len(df['Activity date'].dt.to_period('M').unique())
+        target_hours = monthly_target * months
+        return (actual_hours / target_hours * 100) if target_hours > 0 else 0
+    
+    elif role.lower() == 'associate':
+        monthly_target = 160
+        actual_hours = df['Tracked hours'].sum()  # Total of billable + non-billable
+        months = len(df['Activity date'].dt.to_period('M').unique())
+        target_hours = monthly_target * months
+        return (actual_hours / target_hours * 100) if target_hours > 0 else 0
+    
+    return 0
+
+def calculate_origination_stats(df, attorney_name):
+    """
+    Calculate stats for hours worked by others on originated files
+    """
+    # Filter for matters originated by the attorney
+    originated_matters = df[df['Originating attorney'] == attorney_name]
+    
+    # Calculate hours worked by others on these matters
+    others_hours = originated_matters[
+        originated_matters['User full name (first, last)'] != attorney_name
+    ]['Billable hours'].sum()
+    
+    return others_hours
 def create_sidebar_filters(df):
     """Create comprehensive sidebar filters."""
     st.sidebar.header("Filters")
@@ -228,8 +283,8 @@ def filter_data(df, filters):
     
     return filtered_df
 
-def display_key_metrics(df):
-    """Display key metrics in the top row."""
+def display_key_metrics(df, role='associate'):
+    """Display key metrics with updated calculations."""
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -240,32 +295,29 @@ def display_key_metrics(df):
         )
     
     with col2:
+        # Calculate average rate excluding flat fees
+        avg_rate = calculate_average_rate(df)
         st.metric(
-            "Total Billed Hours",
-            f"{df['Billed hours'].sum():,.1f}",
-            f"${df['Billed hours amount'].sum():,.2f}"
+            "Average Rate (Excl. Flat Fees)",
+            f"${avg_rate:.2f}/hr",
+            "billable rate"
         )
     
     with col3:
-        utilization_rate = (
-            df['Billable hours'].sum() / df['Tracked hours'].sum() * 100
-            if df['Tracked hours'].sum() > 0 else 0
-        )
+        utilization_rate = calculate_utilization_rate(df, role)
         st.metric(
             "Utilization Rate",
             f"{utilization_rate:.1f}%",
-            "of total hours"
+            f"of {80 if role.lower() in ['partner', 'counsel'] else 160} monthly target"
         )
     
     with col4:
-        avg_rate = (
-            df['Billable hours amount'].sum() / df['Billable hours'].sum()
-            if df['Billable hours'].sum() > 0 else 0
-        )
+        # YTD Collections placeholder - you'll need to add actual YTD collection data
+        ytd_collections = df['Billed hours amount'].sum()  # Placeholder calculation
         st.metric(
-            "Average Rate",
-            f"${avg_rate:.2f}/hr",
-            "billable rate"
+            "YTD Collections",
+            f"${ytd_collections:,.2f}",
+            "year to date"
         )
 def create_hours_distribution(df):
     """Create hours distribution chart."""
