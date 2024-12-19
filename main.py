@@ -162,6 +162,21 @@ def load_and_process_data():
         st.error(f"Error loading data: {str(e)}")
         return None
 
+def calculate_target_hours(attorney_level, days_in_period):
+    """Calculate target hours based on attorney level and period length."""
+    # Levels requiring 80 billable hours per month
+    billable_target_levels = [
+        'Senior Counsel',
+        'Mid-Level Counsel',
+        'Counsel',
+        'Law Clerk'
+    ]
+    
+    # All other levels require 160 total hours per month
+    monthly_target = 80 if attorney_level in billable_target_levels else 160
+    
+    # Prorate target based on period length
+    return (monthly_target * days_in_period) / 30
 def create_sidebar_filters(df):
     """Create comprehensive sidebar filters including attorney level filter."""
     st.sidebar.header("Filters")
@@ -413,44 +428,49 @@ def filter_data(df, filters):
     return filtered_df
 def calculate_filtered_metrics(df):
     """
-    Calculate metrics with proper handling of flat fees.
-    A flat fee is identified when:
-    1. Hours <= 1 AND amount >= 1500
-    2. OR Hours = 0
+    Calculate metrics with proper handling of flat fees and different utilization targets.
     """
     # Create a clean copy
     work_df = df.copy()
     
-    # Identify flat fee entries more strictly
-    flat_fee_entries = work_df[
-        ((work_df['Billable hours'] <= 1) & (work_df['Billable hours amount'] >= 1500)) |
-        (work_df['Billable hours'] == 0)
+    # Calculate date range for target proration
+    date_range = (df['Activity date'].max() - df['Activity date'].min()).days + 1
+    
+    # Group by attorney level and calculate utilization
+    level_metrics = df.groupby('Attorney level').agg({
+        'Billable hours': 'sum',
+        'Non-billable hours': 'sum'
+    }).reset_index()
+    
+    # Calculate target and actual utilization for each level
+    level_metrics['target_hours'] = level_metrics['Attorney level'].apply(
+        lambda x: calculate_target_hours(x, date_range)
+    )
+    
+    # Define levels that require only billable hours for utilization
+    billable_target_levels = [
+        'Senior Counsel',
+        'Mid-Level Counsel',
+        'Counsel',
+        'Law Clerk'
     ]
     
-    # Identify hourly entries (everything that's not flat fee)
-    hourly_entries = work_df[
-        ~(((work_df['Billable hours'] <= 1) & (work_df['Billable hours amount'] >= 1500)) |
-          (work_df['Billable hours'] == 0))
-    ]
+    # Calculate utilization rate based on attorney level
+    level_metrics['utilization_rate'] = level_metrics.apply(
+        lambda row: (row['Billable hours'] / row['target_hours'] * 100) 
+        if row['Attorney level'] in billable_target_levels
+        else ((row['Billable hours'] + row['Non-billable hours']) / row['target_hours'] * 100),
+        axis=1
+    )
     
-    # Calculate metrics
-    metrics = {
-        'hourly_hours': hourly_entries['Billable hours'].sum(),
-        'hourly_amount': hourly_entries['Billable hours amount'].sum(),
-        'flat_fee_count': len(flat_fee_entries),
-        'flat_fee_amount': flat_fee_entries['Billable hours amount'].sum(),
-        'total_tracked': work_df['Tracked hours'].sum(),
-        'total_billed': work_df['Billed hours'].sum(),
-        'total_billed_amount': work_df['Billed hours amount'].sum()
-    }
+    # Calculate weighted average utilization rate
+    total_target = level_metrics['target_hours'].sum()
+    utilization_rate = (
+        (level_metrics['utilization_rate'] * level_metrics['target_hours']).sum() / total_target
+        if total_target > 0 else 0
+    )
     
-    # Calculate average hourly rate only for hourly entries
-    if metrics['hourly_hours'] > 0:
-        metrics['average_rate'] = round(metrics['hourly_amount'] / metrics['hourly_hours'], 2)
-    else:
-        metrics['average_rate'] = 0
-    
-    return metrics
+    return utilization_rate
 def create_client_metrics_table(df):
     """Create detailed client metrics table with proper rate handling."""
     # Group by client
@@ -878,28 +898,56 @@ def create_trending_chart(df):
     return fig
 
 def create_attorney_utilization_chart(df):
-    """Create attorney utilization chart."""
-    attorney_util = df.groupby('User full name (first, last)').agg({
+    """Create attorney utilization chart with level-specific targets."""
+    # Calculate date range for target proration
+    date_range = (df['Activity date'].max() - df['Activity date'].min()).days + 1
+    
+    # Group by attorney and get their level
+    attorney_util = df.groupby(['User full name (first, last)', 'Attorney level']).agg({
         'Billable hours': 'sum',
-        'Non-billable hours': 'sum',
-        'Tracked hours': 'sum'
+        'Non-billable hours': 'sum'
     }).reset_index()
     
-    attorney_util['Utilization Rate'] = (
-        attorney_util['Billable hours'] / attorney_util['Tracked hours'] * 100
+    # Calculate target hours for each attorney
+    attorney_util['target_hours'] = attorney_util['Attorney level'].apply(
+        lambda x: calculate_target_hours(x, date_range)
+    )
+    
+    # Define levels that require only billable hours for utilization
+    billable_target_levels = [
+        'Senior Counsel',
+        'Mid-Level Counsel',
+        'Counsel',
+        'Law Clerk'
+    ]
+    
+    # Calculate utilization rate based on level
+    attorney_util['Utilization Rate'] = attorney_util.apply(
+        lambda row: (
+            # For billable target levels, only count billable hours
+            (row['Billable hours'] / row['target_hours'] * 100)
+            if row['Attorney level'] in billable_target_levels
+            # For all other levels, count total hours (billable + non-billable)
+            else ((row['Billable hours'] + row['Non-billable hours']) / row['target_hours'] * 100)
+        ),
+        axis=1
     ).round(2)
+    
+    # Add target information for reference
+    attorney_util['Monthly Target'] = attorney_util['Attorney level'].apply(
+        lambda x: '80 billable hours' if x in billable_target_levels else '160 total hours'
+    )
     
     fig = px.bar(
         attorney_util,
         x='User full name (first, last)',
         y='Utilization Rate',
         title='Attorney Utilization Rates',
-        color='Utilization Rate',
-        color_continuous_scale='Viridis'
+        color='Attorney level',
+        hover_data=['Monthly Target']
     )
     fig.update_layout(xaxis_tickangle=-45)
     return fig
-
 def create_practice_area_sunburst(df):
     """Create practice area sunburst chart."""
     practice_data = df.groupby(['Practice area', 'User full name (first, last)']).agg({
