@@ -1009,14 +1009,14 @@ def main():
         unsafe_allow_html=True
     )
     
-    # Load data directly
+    # First, load data and apply attorney level mapping
     df = load_and_process_data()
     
     if df is not None:
         # Data range info
         st.info("Current data covers: November 1 2024 - December 16, 2024")
         
-        # Get filters
+        # Now create filters after attorney levels are mapped
         filters = create_sidebar_filters(df)
         
         # Apply filters
