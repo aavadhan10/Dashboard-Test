@@ -167,12 +167,15 @@ def calculate_average_rate(df):
     
 def calculate_utilization_rate(df):
     """
-    Calculate utilization rate based on attorney level:
-    - Counsel/Senior Counsel/Mid-Level Counsel: 80 billable hours per month
-    - Associates: 160 total hours per month (billable + non-billable)
+    Calculate utilization rate based on attorney level with debug logging
     """
+    # Print debug information
+    print("Unique attorney levels in df:", df['Attorney Level'].unique())
+    print("Total rows in dataframe:", len(df))
+    
     # Calculate months in the dataset
     months = len(df['Activity date'].dt.to_period('M').unique())
+    print("Number of months:", months)
     
     # Group attorneys by level
     counsel_levels = ['Senior Counsel', 'Counsel', 'Mid-Level Counsel']
@@ -181,25 +184,34 @@ def calculate_utilization_rate(df):
     total_actual_hours = 0
     total_target_hours = 0
     
-    # Calculate for each attorney
+    # Calculate for each attorney with debug info
     for attorney, attorney_df in df.groupby('User full name (first, last)'):
+        if len(attorney_df) == 0:
+            print(f"No data for attorney: {attorney}")
+            continue
+            
         level = attorney_df['Attorney Level'].iloc[0]
+        print(f"\nProcessing {attorney} - Level: {level}")
         
         if level in counsel_levels:
-            # For counsel levels: 80 billable hours per month
             actual_hours = attorney_df['Billable hours'].sum()
             target_hours = 80 * months
+            print(f"Counsel calculation - Actual hours: {actual_hours}, Target: {target_hours}")
         else:
-            # For associates and others: 160 total hours per month
             actual_hours = attorney_df['Tracked hours'].sum()
             target_hours = 160 * months
+            print(f"Non-counsel calculation - Actual hours: {actual_hours}, Target: {target_hours}")
             
         total_actual_hours += actual_hours
         total_target_hours += target_hours
+        
+    print(f"\nFinal totals - Actual: {total_actual_hours}, Target: {total_target_hours}")
     
     # Calculate overall utilization rate
-    return (total_actual_hours / total_target_hours * 100) if total_target_hours > 0 else 0
-
+    utilization_rate = (total_actual_hours / total_target_hours * 100) if total_target_hours > 0 else 0
+    print(f"Calculated utilization rate: {utilization_rate}%")
+    
+    return utilization_rate
 
 def calculate_origination_stats(df, attorney_name):
     """
@@ -260,12 +272,16 @@ def create_sidebar_filters(df):
             default=['Senior Counsel', 'Mid-Level Counsel', 'Counsel']
         )
         
-        # Filter attorneys based on selected levels
-        filtered_attorneys = df[df['Attorney Level'].isin(selected_level)]['User full name (first, last)'].unique()
+        # Filter attorneys based on selected levels, but handle empty selection
+        if selected_level:
+            filtered_attorneys = df[df['Attorney Level'].isin(selected_level)]['User full name (first, last)'].unique()
+        else:
+            filtered_attorneys = df['User full name (first, last)'].unique()
         
         selected_attorneys = st.multiselect(
             "Attorneys",
-            options=sorted(filtered_attorneys)
+            options=sorted(filtered_attorneys),
+            key="attorney_selector"  # Add a unique key
         )
         
         selected_originating = st.multiselect(
