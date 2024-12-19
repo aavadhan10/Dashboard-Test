@@ -164,54 +164,39 @@ def calculate_average_rate(df):
     if billable_df['Billable hours'].sum() > 0:
         return billable_df['Billable hours amount'].sum() / billable_df['Billable hours'].sum()
     return 0
-    
+
 def calculate_utilization_rate(df):
     """
-    Calculate utilization rate based on attorney level with debug logging
+    Calculate utilization rate with different targets based on attorney level:
+    - Counsel/Senior Counsel/Mid-Level Counsel: 80 billable hours per month target
+    - Others: 160 total hours per month target
     """
-    # Print debug information
-    print("Unique attorney levels in df:", df['Attorney Level'].unique())
-    print("Total rows in dataframe:", len(df))
-    
-    # Calculate months in the dataset
+    # Get unique months in the dataset
     months = len(df['Activity date'].dt.to_period('M').unique())
-    print("Number of months:", months)
     
-    # Group attorneys by level
-    counsel_levels = ['Senior Counsel', 'Counsel', 'Mid-Level Counsel']
+    # Calculate totals per attorney
+    total_rate = 0
+    num_attorneys = 0
     
-    # Initialize totals
-    total_actual_hours = 0
-    total_target_hours = 0
-    
-    # Calculate for each attorney with debug info
     for attorney, attorney_df in df.groupby('User full name (first, last)'):
-        if len(attorney_df) == 0:
-            print(f"No data for attorney: {attorney}")
-            continue
-            
         level = attorney_df['Attorney Level'].iloc[0]
-        print(f"\nProcessing {attorney} - Level: {level}")
         
-        if level in counsel_levels:
-            actual_hours = attorney_df['Billable hours'].sum()
-            target_hours = 80 * months
-            print(f"Counsel calculation - Actual hours: {actual_hours}, Target: {target_hours}")
+        if level in ['Senior Counsel', 'Counsel', 'Mid-Level Counsel']:
+            # For counsel: 80 billable hours per month target
+            target = 80 * months
+            actual = attorney_df['Billable hours'].sum()
         else:
-            actual_hours = attorney_df['Tracked hours'].sum()
-            target_hours = 160 * months
-            print(f"Non-counsel calculation - Actual hours: {actual_hours}, Target: {target_hours}")
-            
-        total_actual_hours += actual_hours
-        total_target_hours += target_hours
+            # For others: 160 total hours per month target
+            target = 160 * months
+            actual = attorney_df['Tracked hours'].sum()
         
-    print(f"\nFinal totals - Actual: {total_actual_hours}, Target: {total_target_hours}")
+        if target > 0:
+            attorney_rate = (actual / target) * 100
+            total_rate += attorney_rate
+            num_attorneys += 1
     
-    # Calculate overall utilization rate
-    utilization_rate = (total_actual_hours / total_target_hours * 100) if total_target_hours > 0 else 0
-    print(f"Calculated utilization rate: {utilization_rate}%")
-    
-    return utilization_rate
+    # Calculate average utilization rate across all attorneys
+    return total_rate / num_attorneys if num_attorneys > 0 else 0
 
 def calculate_origination_stats(df, attorney_name):
     """
@@ -446,7 +431,7 @@ def filter_data(df, filters):
     return filtered_df
 
 def display_key_metrics(df):
-    """Display key metrics with updated calculations."""
+    """Display key metrics including utilization with appropriate targets."""
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -457,7 +442,6 @@ def display_key_metrics(df):
         )
     
     with col2:
-        # Calculate average rate excluding flat fees
         avg_rate = calculate_average_rate(df)
         st.metric(
             "Average Rate (Excl. Flat Fees)",
@@ -474,8 +458,7 @@ def display_key_metrics(df):
         )
     
     with col4:
-        # YTD Collections placeholder - you'll need to add actual YTD collection data
-        ytd_collections = df['Billed hours amount'].sum()  # Placeholder calculation
+        ytd_collections = df['Billed hours amount'].sum()
         st.metric(
             "YTD Collections",
             f"${ytd_collections:,.2f}",
