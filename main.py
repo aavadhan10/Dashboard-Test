@@ -213,12 +213,9 @@ def create_sidebar_filters(df):
         st.subheader("Attorney Information")
         
         # Get actual attorney levels from the data
-        available_levels = sorted(df['Attorney level'].unique())
+        available_levels = sorted(df['Attorney level'].dropna().unique())
         
-        # Debug print to see what levels are actually in the data
-        print("Available attorney levels in data:", available_levels)
-        
-        # Add attorney level filter using actual levels from data
+        # Add attorney level filter 
         selected_attorney_levels = st.multiselect(
             "Attorney Levels",
             options=available_levels,
@@ -227,20 +224,24 @@ def create_sidebar_filters(df):
         
         # Filter attorneys based on selected levels
         if selected_attorney_levels:
-            attorney_options = df[df['Attorney level'].isin(selected_attorney_levels)]['User full name (first, last)'].unique()
+            mask = df['Attorney level'].isin(selected_attorney_levels)
+            attorney_options = df[mask]['User full name (first, last)'].unique()
         else:
             attorney_options = df['User full name (first, last)'].unique()
         
+        # Create multiselect for attorneys with sorted names
         selected_attorneys = st.multiselect(
             "Attorneys",
             options=sorted(attorney_options)
         )
         
+        # Originating attorney filter
         selected_originating = st.multiselect(
             "Originating Attorneys",
             options=sorted(df['Originating attorney'].dropna().unique())
         )
         
+        # Hours filter
         min_hours = st.slider(
             "Minimum Billable Hours",
             min_value=0.0,
