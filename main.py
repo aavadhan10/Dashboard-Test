@@ -54,36 +54,27 @@ def calculate_utilization_rate(df, role):
     - Partners/Counsel: 80 billable hours per month
     - Associates: 160 total hours per month (billable + non-billable)
     """
+    # Get number of unique attorneys
+    num_attorneys = df['User full name (first, last)'].nunique()
+    
+    # Calculate months in the dataset
+    months = len(df['Activity date'].dt.to_period('M').unique())
+    
     if role.lower() in ['partner', 'counsel']:
         monthly_target = 80
         actual_hours = df['Billable hours'].sum()
-        # Calculate months in the dataset
-        months = len(df['Activity date'].dt.to_period('M').unique())
-        target_hours = monthly_target * months
+        # Calculate target hours for all attorneys
+        target_hours = monthly_target * months * num_attorneys
         return (actual_hours / target_hours * 100) if target_hours > 0 else 0
     
     elif role.lower() == 'associate':
         monthly_target = 160
         actual_hours = df['Tracked hours'].sum()  # Total of billable + non-billable
-        months = len(df['Activity date'].dt.to_period('M').unique())
-        target_hours = monthly_target * months
+        # Calculate target hours for all attorneys
+        target_hours = monthly_target * months * num_attorneys
         return (actual_hours / target_hours * 100) if target_hours > 0 else 0
     
     return 0
-
-def calculate_origination_stats(df, attorney_name):
-    """
-    Calculate stats for hours worked by others on originated files
-    """
-    # Filter for matters originated by the attorney
-    originated_matters = df[df['Originating attorney'] == attorney_name]
-    
-    # Calculate hours worked by others on these matters
-    others_hours = originated_matters[
-        originated_matters['User full name (first, last)'] != attorney_name
-    ]['Billable hours'].sum()
-    
-    return others_hours
 def create_sidebar_filters(df):
     """Create comprehensive sidebar filters."""
     st.sidebar.header("Filters")
