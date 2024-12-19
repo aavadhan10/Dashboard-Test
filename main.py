@@ -23,8 +23,6 @@ def load_and_process_data():
         
         # Debug: Print unique attorney names before mapping
         print("Unique attorney names in data:", sorted(df['User full name (first, last)'].unique()))
-        
-        # Attorney levels mapping
           attorney_levels = {
             'Adrian Dirassar': 'Senior Counsel',
             'Adrian Roomes': 'Mid-Level Counsel',
