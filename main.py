@@ -377,6 +377,143 @@ def filter_data(df, filters):
     
     return filtered_df
 
+def create_attorney_level_distribution(df):
+    """Create a new visualization showing distribution of hours by attorney level."""
+    # Calculate metrics by attorney level
+    level_data = df.groupby('Attorney level').agg({
+        'Billable hours': 'sum',
+        'Non-billable hours': 'sum',
+        'Billed hours': 'sum',
+        'Billable hours amount': 'sum',
+        'User full name (first, last)': 'nunique'
+    }).reset_index()
+    
+    # Rename columns for clarity
+    level_data = level_data.rename(columns={
+        'User full name (first, last)': 'Number of Attorneys'
+    })
+    
+    # Calculate average metrics per attorney in each level
+    level_data['Avg Billable Hours per Attorney'] = (
+        level_data['Billable hours'] / level_data['Number of Attorneys']
+    ).round(2)
+    
+    level_data['Avg Revenue per Attorney'] = (
+        level_data['Billable hours amount'] / level_data['Number of Attorneys']
+    ).round(2)
+    
+    # Create the main hours distribution chart
+    fig_hours = px.bar(
+        level_data,
+        x='Attorney level',
+        y=['Billable hours', 'Non-billable hours', 'Billed hours'],
+        title='Hours Distribution by Attorney Level',
+        barmode='group',
+        labels={
+            'value': 'Hours',
+            'variable': 'Hour Type'
+        }
+    )
+    
+    fig_hours.update_layout(
+        xaxis_tickangle=-45,
+        legend_title='Hour Type',
+        height=500
+    )
+    
+    # Create the average metrics chart
+    fig_avg = px.bar(
+        level_data,
+        x='Attorney level',
+        y=['Avg Billable Hours per Attorney', 'Avg Revenue per Attorney'],
+        title='Average Metrics by Attorney Level',
+        barmode='group',
+        labels={
+            'value': 'Amount',
+            'variable': 'Metric'
+        }
+    )
+    
+    fig_avg.update_layout(
+        xaxis_tickangle=-45,
+        legend_title='Metric',
+        height=500
+    )
+    
+    # Create a summary table
+    summary_table = level_data[[
+        'Attorney level',
+        'Number of Attorneys',
+        'Billable hours',
+        'Avg Billable Hours per Attorney',
+        'Avg Revenue per Attorney'
+    ]].sort_values('Billable hours', ascending=False)
+    
+    return fig_hours, fig_avg, summary_table
+
+def create_attorney_level_efficiency(df):
+    """Create visualization showing efficiency metrics by attorney level."""
+    # Calculate efficiency metrics by attorney level
+    efficiency_data = df.groupby('Attorney level').agg({
+        'Billable hours': 'sum',
+        'Tracked hours': 'sum',
+        'Billed hours': 'sum',
+        'Billable hours amount': 'sum'
+    }).reset_index()
+    
+    # Calculate efficiency metrics
+    efficiency_data['Utilization Rate'] = (
+        efficiency_data['Billable hours'] / efficiency_data['Tracked hours'] * 100
+    ).round(2)
+    
+    efficiency_data['Realization Rate'] = (
+        efficiency_data['Billed hours'] / efficiency_data['Billable hours'] * 100
+    ).round(2)
+    
+    efficiency_data['Average Hourly Rate'] = (
+        efficiency_data['Billable hours amount'] / efficiency_data['Billable hours']
+    ).round(2)
+    
+    # Create the efficiency metrics chart
+    fig = px.bar(
+        efficiency_data,
+        x='Attorney level',
+        y=['Utilization Rate', 'Realization Rate'],
+        title='Efficiency Metrics by Attorney Level',
+        barmode='group',
+        labels={
+            'value': 'Percentage',
+            'variable': 'Metric'
+        }
+    )
+    
+    fig.update_layout(
+        xaxis_tickangle=-45,
+        legend_title='Metric',
+        height=500
+    )
+    
+    # Add average hourly rate as a line on secondary y-axis
+    fig.add_trace(
+        go.Scatter(
+            x=efficiency_data['Attorney level'],
+            y=efficiency_data['Average Hourly Rate'],
+            name='Average Hourly Rate',
+            yaxis='y2',
+            line=dict(color='red', width=2)
+        )
+    )
+    
+    fig.update_layout(
+        yaxis2=dict(
+            title='Average Hourly Rate ($)',
+            overlaying='y',
+            side='right'
+        )
+    )
+    
+    return fig, efficiency_data
+
 def display_key_metrics(df):
     """Display key metrics in the top row."""
     col1, col2, col3, col4 = st.columns(4)
