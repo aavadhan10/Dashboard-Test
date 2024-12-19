@@ -314,7 +314,7 @@ def create_sidebar_filters(df):
     }
 
 def filter_data(df, filters):
-    """Apply all filters to the dataframe."""
+    """Apply all filters to the dataframe including attorney level filter."""
     filtered_df = df.copy()
     
     # Time filters
@@ -329,6 +329,10 @@ def filter_data(df, filters):
             (filtered_df['Activity date'].dt.date >= filters['date_range'][0]) &
             (filtered_df['Activity date'].dt.date <= filters['date_range'][1])
         ]
+    
+    # Attorney level filter
+    if filters['attorney_levels']:
+        filtered_df = filtered_df[filtered_df['Attorney level'].isin(filters['attorney_levels'])]
     
     # Attorney filters
     if filters['attorneys']:
