@@ -384,6 +384,8 @@ def filter_data(df, filters):
         ]
     
     # Attorney filters
+    if filters['attorney_level']:
+        filtered_df = filtered_df[filtered_df['Attorney Level'].isin(filters['attorney_level'])]
     if filters['attorneys']:
         filtered_df = filtered_df[filtered_df['User full name (first, last)'].isin(filters['attorneys'])]
     if filters['originating_attorneys']:
