@@ -388,8 +388,8 @@ def create_client_metrics_table(df):
     
     return client_metrics
 
-def update_display_key_metrics(df):
-    """Display key metrics with proper rate calculation."""
+def display_key_metrics(df):
+    """Display key metrics in the top row with proper rate calculations."""
     col1, col2, col3, col4 = st.columns(4)
     
     # Calculate billing summary using the new logic
@@ -411,7 +411,7 @@ def update_display_key_metrics(df):
     
     with col3:
         utilization_rate = (
-            billing_summary['total_hours'] / df['Tracked hours'].sum() * 100
+            df['Billable hours'].sum() / df['Tracked hours'].sum() * 100
             if df['Tracked hours'].sum() > 0 else 0
         )
         st.metric(
