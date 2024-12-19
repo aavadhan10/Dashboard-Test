@@ -445,6 +445,23 @@ def calculate_filtered_metrics(df):
           (work_df['Billable hours'] == 0))
     ]
     
+    # Calculate basic metrics
+    metrics = {
+        'hourly_hours': hourly_entries['Billable hours'].sum(),
+        'hourly_amount': hourly_entries['Billable hours amount'].sum(),
+        'flat_fee_count': len(flat_fee_entries),
+        'flat_fee_amount': flat_fee_entries['Billable hours amount'].sum(),
+        'total_tracked': work_df['Tracked hours'].sum(),
+        'total_billed': work_df['Billed hours'].sum(),
+        'total_billed_amount': work_df['Billed hours amount'].sum()
+    }
+    
+    # Calculate average rate for hourly entries
+    if metrics['hourly_hours'] > 0:
+        metrics['average_rate'] = round(metrics['hourly_amount'] / metrics['hourly_hours'], 2)
+    else:
+        metrics['average_rate'] = 0
+    
     # Calculate date range for target proration
     date_range = (df['Activity date'].max() - df['Activity date'].min()).days + 1
     
@@ -477,22 +494,12 @@ def calculate_filtered_metrics(df):
     
     # Calculate weighted average utilization rate
     total_target = level_metrics['target_hours'].sum()
-    weighted_utilization = (
+    metrics['utilization_rate'] = (
         (level_metrics['utilization_rate'] * level_metrics['target_hours']).sum() / total_target
         if total_target > 0 else 0
     )
     
-    # Return all necessary metrics in a dictionary
-    return {
-        'hourly_hours': hourly_entries['Billable hours'].sum(),
-        'hourly_amount': hourly_entries['Billable hours amount'].sum(),
-        'flat_fee_count': len(flat_fee_entries),
-        'flat_fee_amount': flat_fee_entries['Billable hours amount'].sum(),
-        'total_tracked': work_df['Tracked hours'].sum(),
-        'total_billed': work_df['Billed hours'].sum(),
-        'total_billed_amount': work_df['Billed hours amount'].sum(),
-        'utilization_rate': weighted_utilization
-    }
+    return metrics
 def create_client_metrics_table(df):
     """Create detailed client metrics table with proper rate handling."""
     # Group by client
@@ -554,9 +561,8 @@ def display_key_metrics(df):
         )
     
     with col4:
-        if metrics['hourly_hours'] > 0:
-            avg_rate = metrics['hourly_amount'] / metrics['hourly_hours']
-            rate_display = f"${avg_rate:,.2f}/hr"
+        if metrics['average_rate'] > 0:
+            rate_display = f"${metrics['average_rate']:,.2f}/hr"
             delta = "excluding flat fees"
         else:
             rate_display = "Flat fees only"
