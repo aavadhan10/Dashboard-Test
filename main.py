@@ -433,6 +433,18 @@ def calculate_filtered_metrics(df):
     # Create a clean copy
     work_df = df.copy()
     
+    # Identify flat fee entries
+    flat_fee_entries = work_df[
+        ((work_df['Billable hours'] <= 1) & (work_df['Billable hours amount'] >= 1500)) |
+        (work_df['Billable hours'] == 0)
+    ]
+    
+    # Identify hourly entries (everything that's not flat fee)
+    hourly_entries = work_df[
+        ~(((work_df['Billable hours'] <= 1) & (work_df['Billable hours amount'] >= 1500)) |
+          (work_df['Billable hours'] == 0))
+    ]
+    
     # Calculate date range for target proration
     date_range = (df['Activity date'].max() - df['Activity date'].min()).days + 1
     
@@ -465,12 +477,22 @@ def calculate_filtered_metrics(df):
     
     # Calculate weighted average utilization rate
     total_target = level_metrics['target_hours'].sum()
-    utilization_rate = (
+    weighted_utilization = (
         (level_metrics['utilization_rate'] * level_metrics['target_hours']).sum() / total_target
         if total_target > 0 else 0
     )
     
-    return utilization_rate
+    # Return all necessary metrics in a dictionary
+    return {
+        'hourly_hours': hourly_entries['Billable hours'].sum(),
+        'hourly_amount': hourly_entries['Billable hours amount'].sum(),
+        'flat_fee_count': len(flat_fee_entries),
+        'flat_fee_amount': flat_fee_entries['Billable hours amount'].sum(),
+        'total_tracked': work_df['Tracked hours'].sum(),
+        'total_billed': work_df['Billed hours'].sum(),
+        'total_billed_amount': work_df['Billed hours amount'].sum(),
+        'utilization_rate': weighted_utilization
+    }
 def create_client_metrics_table(df):
     """Create detailed client metrics table with proper rate handling."""
     # Group by client
@@ -503,52 +525,48 @@ def create_client_metrics_table(df):
     return client_metrics
 
 def display_key_metrics(df):
-    """Display key metrics in the top row with proper rate calculations."""
+    """Display key metrics with proper handling of flat fees and hourly rates."""
+    metrics = calculate_filtered_metrics(df)
+    
     col1, col2, col3, col4 = st.columns(4)
     
-    # Get all metrics using the new calculation
-    avg_rate, hourly_amount, hourly_hours, flat_fee_amount, flat_fee_count = calculate_average_rate(df)
-    
     with col1:
+        total_billable = metrics['hourly_hours'] + (0 if pd.isna(metrics['flat_fee_count']) else metrics['flat_fee_count'])
+        total_amount = metrics['hourly_amount'] + metrics['flat_fee_amount']
         st.metric(
-            "Hourly Billable",
-            f"{hourly_hours:,.1f} hrs",
-            f"${hourly_amount:,.2f}"
+            "Total Billable Hours",
+            f"{total_billable:,.1f}",
+            f"${total_amount:,.2f}"
         )
     
     with col2:
         st.metric(
-            "Flat Fee Matters",
-            f"{flat_fee_count}",
-            f"${flat_fee_amount:,.2f}"
+            "Total Billed Hours",
+            f"{metrics['total_billed']:,.1f}",
+            f"${metrics['total_billed_amount']:,.2f}"
         )
     
     with col3:
-        # Calculate utilization including all hours for accuracy
-        total_tracked = df['Tracked hours'].sum()
-        utilization_rate = (
-            df['Billable hours'].sum() / total_tracked * 100
-            if total_tracked > 0 else 0
-        )
         st.metric(
             "Utilization Rate",
-            f"{utilization_rate:.1f}%",
-            "of total hours"
+            f"{metrics['utilization_rate']:.1f}%",
+            "based on level targets"
         )
     
     with col4:
-        if avg_rate > 0:
-            st.metric(
-                "Average Rate",
-                f"${avg_rate:,.2f}/hr",
-                "hourly matters only"
-            )
+        if metrics['hourly_hours'] > 0:
+            avg_rate = metrics['hourly_amount'] / metrics['hourly_hours']
+            rate_display = f"${avg_rate:,.2f}/hr"
+            delta = "excluding flat fees"
         else:
-            st.metric(
-                "Average Rate",
-                "N/A",
-                "no hourly matters"
-            )
+            rate_display = "Flat fees only"
+            delta = f"${metrics['flat_fee_amount']:,.2f} total"
+            
+        st.metric(
+            "Average Rate",
+            rate_display,
+            delta
+        )
 
 def get_billing_summary(df):
     """
