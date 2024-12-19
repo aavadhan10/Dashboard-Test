@@ -21,6 +21,122 @@ def load_and_process_data():
         # Convert Matter description to string
         df['Matter description'] = df['Matter description'].fillna('').astype(str)
         
+        # Add attorney level mapping
+        attorney_levels = {
+            'Adrian Dirassar': 'Senior Counsel',
+            'Adrian Roomes': 'Mid-Level Counsel',
+            'Ajay Krishnan': 'Mid-Level Counsel',
+            'Alexander James Stack': 'Senior Counsel',
+            'Aliza Dason': 'Counsel',
+            'Andrea Freund': 'Senior Counsel',
+            'Alan Sless': 'Senior Counsel',
+            'Annie Belecki': 'Senior Counsel',
+            'Anjali Ekta Banka': 'Senior Counsel',
+            'Anthony Shapiro': 'Senior Counsel',
+            'Antoine Malek': 'Senior Counsel',
+            'April Pettigrew': 'Corporate Document Assistant',
+            'Avril Hasselfield': 'Senior Counsel',
+            'Benjamin Derek Rovet': 'Senior Counsel',
+            'Beth Gearing': 'Senior Counsel',
+            'Bill Stanger': 'Senior Counsel',
+            'Bill Herman': 'Senior Counsel',
+            'Binita Jacob': 'Senior Counsel',
+            'Brenda Chandler': 'Senior Counsel',
+            'Bruce Baron': 'Senior Counsel',
+            'Cerise Latibeaudiere': 'Senior Counsel',
+            'Constance Wai Min Chan': 'Senior Counsel',
+            'Corrie Stepan': 'Senior Counsel',
+            'Cynthia Yang': 'Senior Counsel',
+            'Daniel Batista': 'Senior Counsel',
+            'Daniel Lawrence McKay': 'Senior Counsel',
+            'Dave McIntyre': 'Senior Counsel',
+            'David Dunbar': 'Senior Counsel',
+            'David Masse': 'Senior Counsel',
+            'David Bryan Zender': 'Senior Counsel',
+            'Dina Moore': 'Law Clerk',
+            'Doris Riker': 'Document Specialist',
+            'Ebony Stoffels': 'Law Clerk',
+            'Ellen Victoria Swan': 'Senior Counsel',
+            'Elyse Mallins': 'Senior Counsel',
+            'Ernest Belyea': 'Senior Counsel',
+            'Esia (Theodosia) Giaouris': 'Senior Counsel',
+            'Eva Melamed': 'Senior Counsel',
+            'Evelyn Ackah': 'Senior Counsel',
+            'Frances Petryshen': 'Corporate Secretary',
+            'Frank Gary Giblon': 'Senior Counsel',
+            'Glen Harder': 'Senior Counsel',
+            'Greg Porter': 'Senior Counsel',
+            'Greg Ramsay': 'Senior Counsel',
+            'Hamish Cumming': 'Senior Counsel',
+            'Hugh Kerr': 'Senior Counsel',
+            'Ian Alexander Ness': 'Senior Counsel',
+            'Iana Namestnikova': 'Mid-Level Counsel',
+            'James Oborne': 'Mid-Level Counsel',
+            'Jason Lakhan': 'Senior Counsel',
+            'Jeff Bright': 'Senior Counsel',
+            'Jeffrey David Klam': 'Senior Counsel',
+            'Jeremy Budd': 'Senior Counsel',
+            'Joel Guralnick': 'Senior Counsel',
+            'John Tyrrell': 'Senior Counsel',
+            'John Whyte': 'Senior Counsel',
+            'Josee Cameron-Virgo': 'Senior Counsel',
+            'Judy Hyeonseon Chun': 'Senior Counsel',
+            'Kendall Barban': 'Start-Up Lawyer',
+            'Kevin Michael Shnier': 'Senior Counsel',
+            'Kim Guy Von Arx': 'Senior Counsel',
+            'Lance Lehman': 'Senior Counsel',
+            'Leonard Gaik': 'Senior Counsel',
+            'Leslie Allan': 'Senior Counsel',
+            'Lisa Conway': 'Senior Counsel',
+            'Lisa McDowell': 'Senior Counsel',
+            'Lori Lyn Adams': 'Senior Counsel',
+            'Luke Kuzio': 'Senior Counsel',
+            'Mark Wainman': 'Senior Counsel',
+            'Meenal Gole': 'Corporate Secretary',
+            'Melissa Babel': 'Senior Counsel',
+            'Michael Fitzgerald': 'Senior Counsel',
+            'Michele Koyle': 'Senior Counsel',
+            'Michelle Grant-Asselin': 'Law Clerk',
+            'Monica Goyal': 'Senior Counsel',
+            'Morli Shemesh': 'Senior Counsel',
+            'Neil Kothari': 'Senior Counsel',
+            'Nikki Stewart-St. Arnault': 'Senior Counsel',
+            'Olivia Dutka': 'Law Clerk',
+            'Patrick Dolan': 'Senior Counsel',
+            'Peter Torn': 'Senior Counsel',
+            'Peter Dale': 'Senior Counsel',
+            'Peter Goode': 'Senior Counsel',
+            'Peter Prattas': 'Senior Counsel',
+            'Peter Kalins': 'Senior Counsel',
+            'Philippe Chouinard-Rousseau': 'Senior Counsel',
+            'Randall Witten': 'Senior Counsel',
+            'Robert Bosenius': 'Senior Counsel',
+            'Rose Oushalkas': 'Senior Counsel',
+            'Sarah Blackburn': 'Counsel',
+            'Sara Kunto': 'Senior Counsel',
+            'Sarah Sidhu': 'Senior Counsel',
+            'Sean Mitra': 'Mid-Level Counsel',
+            'Sean Williamson': 'Counsel',
+            'Seung-Yoon Lisa Lee': 'Senior Counsel',
+            'Sherry Roxanne Hanlon': 'Senior Counsel',
+            'Simon Brian Anthony Rawson Levett': 'Senior Counsel',
+            'Solange Brard': 'Senior Counsel',
+            'Sonny Bhalla': 'Senior Counsel',
+            'Stephen Dan Black': 'Senior Counsel',
+            'Sue Gaudi': 'Senior Counsel',
+            'Susan Rai': 'Senior Counsel',
+            'Tim Froese': 'Senior Counsel',
+            'Tracey Lynn Durand': 'Senior Counsel',
+            'Vinoja Wichweswaran': 'Mid-Level Counsel',
+            'Wanda Shreve': 'Senior Counsel',
+            'Wendy Bach': 'Senior Counsel',
+            'Yah Yao': 'Senior Counsel',
+            'Zoe Rossolatos': 'Senior Counsel'
+        }
+        
+        # Add attorney level to dataframe
+        df['Attorney Level'] = df['User full name (first, last)'].map(attorney_levels)
+        
         # Calculate additional metrics
         df['Total hours'] = df['Billable hours'] + df['Non-billable hours']
         df['Utilization rate'] = (df['Billable hours'] / df['Total hours'] * 100).fillna(0)
@@ -29,6 +145,7 @@ def load_and_process_data():
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
         return None
+
 def calculate_average_rate(df):
     """
     Calculate average rate excluding flat fees and expenses.
@@ -48,33 +165,55 @@ def calculate_average_rate(df):
         return billable_df['Billable hours amount'].sum() / billable_df['Billable hours'].sum()
     return 0
 
-def calculate_utilization_rate(df, role):
+def calculate_utilization_rate(df):
     """
-    Calculate utilization rate based on role-specific requirements:
-    - Partners/Counsel: 80 billable hours per month
+    Calculate utilization rate based on attorney level:
+    - Counsel/Senior Counsel/Mid-Level Counsel: 80 billable hours per month
     - Associates: 160 total hours per month (billable + non-billable)
     """
-    # Get number of unique attorneys
-    num_attorneys = df['User full name (first, last)'].nunique()
-    
     # Calculate months in the dataset
     months = len(df['Activity date'].dt.to_period('M').unique())
     
-    if role.lower() in ['partner', 'counsel']:
-        monthly_target = 80
-        actual_hours = df['Billable hours'].sum()
-        # Calculate target hours for all attorneys
-        target_hours = monthly_target * months * num_attorneys
-        return (actual_hours / target_hours * 100) if target_hours > 0 else 0
+    # Group attorneys by level
+    counsel_levels = ['Senior Counsel', 'Counsel', 'Mid-Level Counsel']
     
-    elif role.lower() == 'associate':
-        monthly_target = 160
-        actual_hours = df['Tracked hours'].sum()  # Total of billable + non-billable
-        # Calculate target hours for all attorneys
-        target_hours = monthly_target * months * num_attorneys
-        return (actual_hours / target_hours * 100) if target_hours > 0 else 0
+    # Initialize totals
+    total_actual_hours = 0
+    total_target_hours = 0
     
-    return 0
+    # Calculate for each attorney
+    for attorney, attorney_df in df.groupby('User full name (first, last)'):
+        level = attorney_df['Attorney Level'].iloc[0]
+        
+        if level in counsel_levels:
+            # For counsel levels: 80 billable hours per month
+            actual_hours = attorney_df['Billable hours'].sum()
+            target_hours = 80 * months
+        else:
+            # For associates and others: 160 total hours per month
+            actual_hours = attorney_df['Tracked hours'].sum()
+            target_hours = 160 * months
+            
+        total_actual_hours += actual_hours
+        total_target_hours += target_hours
+    
+    # Calculate overall utilization rate
+    return (total_actual_hours / total_target_hours * 100) if total_target_hours > 0 else 0
+
+def calculate_origination_stats(df, attorney_name):
+    """
+    Calculate stats for hours worked by others on originated files
+    """
+    # Filter for matters originated by the attorney
+    originated_matters = df[df['Originating attorney'] == attorney_name]
+    
+    # Calculate hours worked by others on these matters
+    others_hours = originated_matters[
+        originated_matters['User full name (first, last)'] != attorney_name
+    ]['Billable hours'].sum()
+    
+    return others_hours
+    
 def create_sidebar_filters(df):
     """Create comprehensive sidebar filters."""
     st.sidebar.header("Filters")
