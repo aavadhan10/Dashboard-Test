@@ -413,7 +413,7 @@ def filter_data(df, filters):
     
     return filtered_df
 
-def display_key_metrics(df, role='associate'):
+def display_key_metrics(df):
     """Display key metrics with updated calculations."""
     col1, col2, col3, col4 = st.columns(4)
     
@@ -434,11 +434,11 @@ def display_key_metrics(df, role='associate'):
         )
     
     with col3:
-        utilization_rate = calculate_utilization_rate(df, role)
+        utilization_rate = calculate_utilization_rate(df)
         st.metric(
             "Utilization Rate",
             f"{utilization_rate:.1f}%",
-            f"of {80 if role.lower() in ['partner', 'counsel'] else 160} monthly target"
+            "of target hours"
         )
     
     with col4:
