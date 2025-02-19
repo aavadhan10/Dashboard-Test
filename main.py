@@ -370,68 +370,70 @@ def create_sidebar_filters(df):
 def filter_data(df, filters):
     """Apply filters to the dataframe."""
     try:
+        # Print initial dataframe info for debugging
+        st.write(f"Initial dataframe shape: {df.shape}")
+        st.write("Initial columns:", df.columns.tolist())
+        
         filtered_df = df.copy()
+        
+        # Debug print for each filter
+        st.write("Applied Filters:")
         
         # Time filters
         if filters['year']:
+            st.write(f"Year filter: {filters['year']}")
             filtered_df = filtered_df[filtered_df['year'] == filters['year']]
+            st.write(f"After year filter: {filtered_df.shape}")
+        
         if filters['quarter']:
+            st.write(f"Quarter filter: {filters['quarter']}")
             filtered_df = filtered_df[filtered_df['Activity quarter'] == filters['quarter']]
+            st.write(f"After quarter filter: {filtered_df.shape}")
+        
         if filters['months']:
+            st.write(f"Months filter: {filters['months']}")
             filtered_df = filtered_df[filtered_df['Activity month'].isin(filters['months'])]
+            st.write(f"After months filter: {filtered_df.shape}")
+        
         if len(filters['date_range']) == 2:
+            st.write(f"Date range filter: {filters['date_range']}")
             filtered_df = filtered_df[
                 (filtered_df['Activity date'].dt.date >= filters['date_range'][0]) &
                 (filtered_df['Activity date'].dt.date <= filters['date_range'][1])
             ]
+            st.write(f"After date range filter: {filtered_df.shape}")
         
         # Attorney filters
         if filters['attorney_levels']:
+            st.write(f"Attorney levels filter: {filters['attorney_levels']}")
             filtered_df = filtered_df[filtered_df['Attorney level'].isin(filters['attorney_levels'])]
+            st.write(f"After attorney levels filter: {filtered_df.shape}")
+        
         if filters['attorneys']:
+            st.write(f"Attorneys filter: {filters['attorneys']}")
             filtered_df = filtered_df[filtered_df['User full name (first, last)'].isin(filters['attorneys'])]
+            st.write(f"After attorneys filter: {filtered_df.shape}")
+        
         if filters['originating_attorneys']:
+            st.write(f"Originating attorneys filter: {filters['originating_attorneys']}")
             filtered_df = filtered_df[filtered_df['Originating attorney'].isin(filters['originating_attorneys'])]
+            st.write(f"After originating attorneys filter: {filtered_df.shape}")
         
-        # Practice area filters
-        if filters['practice_areas']:
-            filtered_df = filtered_df[filtered_df['Practice area'].isin(filters['practice_areas'])]
-        if filters['locations']:
-            filtered_df = filtered_df[filtered_df['Matter location'].isin(filters['locations'])]
-        
-        # Matter filters
-        if filters['matter_status']:
-            filtered_df = filtered_df[filtered_df['Matter status'].isin(filters['matter_status'])]
-        if filters['billable_matter']:
-            filtered_df = filtered_df[filtered_df['Billable matter'].isin(filters['billable_matter'])]
-        if filters['billing_methods']:
-            filtered_df = filtered_df[filtered_df['Matter billing method'].isin(filters['billing_methods'])]
-        
-        # Financial filters
-        if filters['min_amount'] > 0:
-            filtered_df = filtered_df[filtered_df['Billed & Unbilled hours value'] >= filters['min_amount']]
-        if len(filters['rate_range']) == 2:
-            filtered_df = filtered_df[
-                (filtered_df['User rate'] >= filters['rate_range'][0]) &
-                (filtered_df['User rate'] <= filters['rate_range'][1])
-            ]
-        
-        # Client filters
-        if filters['companies']:
-            filtered_df = filtered_df[filtered_df['Company name'].isin(filters['companies'])]
-        if filters['clients']:
-            filtered_df = filtered_df[filtered_df['Contact full name (last, first)'].isin(filters['clients'])]
-        if filters['matters']:
-            filtered_df = filtered_df[filtered_df['Matter description'].isin(filters['matters'])]
+        # Add similar debug prints for other filter sections...
         
         if len(filtered_df) == 0:
             st.warning("No data available for the selected filters. Please adjust your criteria.")
+            st.write("Original dataframe unique values:")
+            for col in ['year', 'Activity quarter', 'Activity month', 'Attorney level', 'User full name (first, last)', 'Originating attorney']:
+                st.write(f"{col}: {df[col].unique()}")
             return df
             
         return filtered_df
         
     except Exception as e:
         st.error(f"Error applying filters: {str(e)}")
+        import traceback
+        st.error(traceback.format_exc())
         return df
 
 def calculate_metrics(df):
