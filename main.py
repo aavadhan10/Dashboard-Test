@@ -610,8 +610,7 @@ def create_visualizations(df):
         import traceback
         st.error(traceback.format_exc())
         return None, None, None
-
-def main():
+Copydef main():
     st.title("Legal Dashboard")
     
     # Load data
