@@ -199,12 +199,14 @@ def create_sidebar_filters(df):
     with filter_tabs[1]:  # Attorney Filters
         st.subheader("Attorney Information")
         
+        # Add attorney level filter
         selected_attorney_levels = st.multiselect(
             "Attorney Levels",
             options=sorted(df['Attorney level'].dropna().unique()),
             help="Select one or more attorney levels to filter"
         )
         
+        # Filter attorneys based on selected levels
         attorney_options = sorted(df['User full name (first, last)'].unique())
         if selected_attorney_levels:
             attorney_options = sorted([
@@ -222,10 +224,12 @@ def create_sidebar_filters(df):
             options=sorted(df['Originating attorney'].dropna().unique())
         )
         
+        # Safe handling of tracked hours
+        tracked_hours_max = df['Tracked hours'].fillna(0).max()
         min_hours = st.slider(
             "Minimum Billable Hours",
             min_value=0.0,
-            max_value=float(df['Tracked hours'].max()),
+            max_value=float(tracked_hours_max),
             value=0.0
         )
 
@@ -260,18 +264,24 @@ def create_sidebar_filters(df):
 
     with filter_tabs[4]:  # Financial Filters
         st.subheader("Financial Metrics")
+        
+        # Safe handling of billed hours value
+        billed_value_max = df['Billed hours value'].fillna(0).max()
         min_amount = st.number_input(
             "Minimum Billable Amount",
             min_value=0.0,
-            max_value=float(df['Billed hours value'].max()),
+            max_value=float(billed_value_max),
             value=0.0
         )
         
+        # Safe handling of user rate range
+        user_rate_min = df['User rate'].fillna(0).min()
+        user_rate_max = df['User rate'].fillna(0).max()
         rate_range = st.slider(
             "Hourly Rate Range",
-            min_value=float(df['User rate'].min()),
-            max_value=float(df['User rate'].max()),
-            value=(float(df['User rate'].min()), float(df['User rate'].max()))
+            min_value=float(user_rate_min),
+            max_value=float(user_rate_max),
+            value=(float(user_rate_min), float(user_rate_max))
         )
 
     with filter_tabs[5]:  # Client Filters
@@ -291,10 +301,12 @@ def create_sidebar_filters(df):
             options=sorted(df['Matter description'].unique())
         )
         
+        # Safe handling of client hours
+        client_hours_max = df.groupby('Matter description')['Tracked hours'].sum().fillna(0).max()
         min_client_hours = st.slider(
             "Minimum Client Hours",
             min_value=0.0,
-            max_value=float(df.groupby('Matter description')['Tracked hours'].sum().max()),
+            max_value=float(client_hours_max),
             value=0.0
         )
 
@@ -303,6 +315,7 @@ def create_sidebar_filters(df):
     st.sidebar.markdown("**Last Data Refresh:** " + datetime.now().strftime("%B %d, %Y"))
     st.sidebar.markdown("**Data Range:** November 2024 - Present")
 
+    # Return all filter values
     return {
         'year': selected_year,
         'quarter': selected_quarter,
