@@ -640,10 +640,10 @@ def main():
             metrics = calculate_metrics(filtered_df)
             display_metrics(metrics)
             
-            # Create visualizations
+            # Create visualizations USING THE FILTERED DATAFRAME
             fig_hours, fig_practice, fig_attorney = create_visualizations(filtered_df)
             
-            if fig_hours and fig_practice and fig_attorney:
+            if fig_hours and fig_practice:
                 # Display visualizations
                 col1, col2 = st.columns(2)
                 
@@ -653,11 +653,9 @@ def main():
                 with col2:
                     st.plotly_chart(fig_practice, use_container_width=True)
                 
-                st.plotly_chart(fig_attorney, use_container_width=True)
+                if fig_attorney:
+                    st.plotly_chart(fig_attorney, use_container_width=True)
         else:
             st.warning("No data available for the selected filters. Please adjust your criteria.")
     else:
         st.error("Error loading data. Please check the data source and try again.")
-
-if __name__ == "__main__":
-    main()
