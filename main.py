@@ -326,7 +326,7 @@ def create_sidebar_filters(df):
     # Display refresh information
     st.sidebar.markdown("---")
     st.sidebar.markdown("**Last Data Refresh:** " + datetime.now().strftime("%B %d, %Y"))
-    st.sidebar.markdown("**Data Range:** November 2024 - Present")
+    st.sidebar.markdown("**Data Range:** January 2024 - Present")
 
     # Return all filter values
     return {
