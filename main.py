@@ -549,38 +549,66 @@ def create_visualizations(df):
             'Tracked hours': 'sum'
         }).reset_index()
         
-        attorney_data['Utilization Rate'] = (
-            attorney_data['Billed & Unbilled hours'] / attorney_data['Tracked hours'] * 100
-        ).fillna(0).replace([np.inf, -np.inf], 0)
+        # Safely calculate utilization rate
+        attorney_data['Utilization Rate'] = np.where(
+            attorney_data['Tracked hours'] > 0,
+            (attorney_data['Billed & Unbilled hours'] / attorney_data['Tracked hours'] * 100),
+            0
+        )
         
-        # Safe scatter plot: filter out NaN values and handle size carefully
+        # Prepare data for scatter plot with robust size handling
         attorney_data_clean = attorney_data[
             attorney_data['Billed & Unbilled hours'].notna() & 
-            attorney_data['Billed & Unbilled hours value'].notna() &
-            (attorney_data['Utilization Rate'].notna())
-        ]
+            attorney_data['Billed & Unbilled hours value'].notna()
+        ].copy()
         
-        # Normalize size for scatter plot
+        # Create a safe size column with a default minimum
         min_size = 5
         max_size = 20
-        attorney_data_clean['marker_size'] = (
-            (attorney_data_clean['Utilization Rate'] - attorney_data_clean['Utilization Rate'].min()) / 
-            (attorney_data_clean['Utilization Rate'].max() - attorney_data_clean['Utilization Rate'].min())
-        ) * (max_size - min_size) + min_size
         
-        fig_attorney = px.scatter(
-            attorney_data_clean,
-            x='Billed & Unbilled hours',
-            y='Billed & Unbilled hours value',
-            size='marker_size',
-            hover_name='User full name (first, last)',
-            title='Attorney Performance'
-        )
+        # Normalize size, handling potential edge cases
+        if len(attorney_data_clean) > 0:
+            # Ensure we don't divide by zero or use NaN
+            utilization_rates = attorney_data_clean['Utilization Rate'].fillna(0)
+            rate_min = utilization_rates.min()
+            rate_max = utilization_rates.max()
+            
+            if rate_max > rate_min:
+                attorney_data_clean['marker_size'] = (
+                    (utilization_rates - rate_min) / (rate_max - rate_min)
+                ) * (max_size - min_size) + min_size
+            else:
+                # If all rates are the same, use a constant size
+                attorney_data_clean['marker_size'] = min_size
+        else:
+            # If no data, return existing visualizations
+            return fig_hours, fig_practice, None
+        
+        # Ensure marker_size is numeric and has no NaNs
+        attorney_data_clean['marker_size'] = attorney_data_clean['marker_size'].fillna(min_size).clip(min_size, max_size)
+        
+        # Create scatter plot
+        fig_attorney = go.Figure(data=go.Scatter(
+            x=attorney_data_clean['Billed & Unbilled hours'],
+            y=attorney_data_clean['Billed & Unbilled hours value'],
+            mode='markers',
+            marker=dict(
+                size=attorney_data_clean['marker_size'],
+                sizemode='area',
+                sizeref=2.*max(attorney_data_clean['marker_size'])/(40.**2),
+                sizemin=4
+            ),
+            text=attorney_data_clean['User full name (first, last)'],
+            hoverinfo='text+x+y'
+        ))
+        fig_attorney.update_layout(title='Attorney Performance')
         
         return fig_hours, fig_practice, fig_attorney
         
     except Exception as e:
         st.error(f"Error creating visualizations: {str(e)}")
+        import traceback
+        st.error(traceback.format_exc())
         return None, None, None
 
 def main():
