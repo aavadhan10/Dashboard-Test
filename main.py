@@ -367,7 +367,7 @@ def create_sidebar_filters(df):
         'min_client_hours': min_client_hours
     }
     
-ef filter_data(df, filters):
+def filter_data(df, filters):
     """Apply filters to the dataframe."""
     filtered_df = df.copy()
     
