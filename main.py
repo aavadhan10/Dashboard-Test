@@ -505,6 +505,11 @@ def display_metrics(metrics):
 
 def create_visualizations(df):
     """Create all visualizations for the dashboard."""
+    # Add extensive debugging
+    st.write("Visualization Function Debug:")
+    st.write(f"Input dataframe shape: {df.shape}")
+    st.write("Input dataframe columns:", list(df.columns))
+    
     if df.empty:
         st.warning("No data available to create visualizations.")
         return None, None, None
@@ -519,6 +524,7 @@ def create_visualizations(df):
                 df['Unbilled hours'].sum()
             ]
         })
+        st.write("Hours Distribution Data:", hours_data)
         
         fig_hours = px.pie(
             hours_data,
@@ -532,6 +538,7 @@ def create_visualizations(df):
             'Billed & Unbilled hours': 'sum',
             'Billed & Unbilled hours value': 'sum'
         }).reset_index()
+        st.write("Practice Area Data:", practice_data)
         
         fig_practice = px.bar(
             practice_data,
@@ -548,6 +555,7 @@ def create_visualizations(df):
             'Billed & Unbilled hours value': 'sum',
             'Tracked hours': 'sum'
         }).reset_index()
+        st.write("Attorney Performance Data:", attorney_data)
         
         # Safely calculate utilization rate
         attorney_data['Utilization Rate'] = np.where(
@@ -610,6 +618,7 @@ def create_visualizations(df):
         import traceback
         st.error(traceback.format_exc())
         return None, None, None
+
 def main():
     st.title("Legal Dashboard")
     
@@ -634,6 +643,10 @@ def main():
         # Apply filters
         filtered_df = filter_data(df, filters)
         
+        # Debug filtering results
+        st.write(f"Original dataframe shape: {df.shape}")
+        st.write(f"Filtered dataframe shape: {filtered_df.shape}")
+        
         if not filtered_df.empty:
             # Calculate and display metrics
             metrics = calculate_metrics(filtered_df)
@@ -642,18 +655,23 @@ def main():
             # Create visualizations USING THE FILTERED DATAFRAME
             fig_hours, fig_practice, fig_attorney = create_visualizations(filtered_df)
             
-            if fig_hours and fig_practice:
-                # Display visualizations
+            # More robust visualization display
+            if fig_hours is not None:
                 col1, col2 = st.columns(2)
                 
                 with col1:
                     st.plotly_chart(fig_hours, use_container_width=True)
                 
                 with col2:
-                    st.plotly_chart(fig_practice, use_container_width=True)
+                    if fig_practice is not None:
+                        st.plotly_chart(fig_practice, use_container_width=True)
+                    else:
+                        st.warning("Could not create Practice Area visualization")
                 
-                if fig_attorney:
+                if fig_attorney is not None:
                     st.plotly_chart(fig_attorney, use_container_width=True)
+                else:
+                    st.warning("Could not create Attorney Performance visualization")
         else:
             st.warning("No data available for the selected filters. Please adjust your criteria.")
     else:
