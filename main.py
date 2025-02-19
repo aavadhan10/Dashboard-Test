@@ -13,16 +13,16 @@ st.set_page_config(page_title="Legal Dashboard", layout="wide")
 def load_and_process_data():
     """Load and process the CSV file and add attorney level information."""
     try:
-        # Load the CSV file
-        df = pd.read_csv('Test_Full_Year.csv')
+        # Load the tab-separated file
+        df = pd.read_csv('Test_Full_Year.csv', sep='\t')
         
         # Convert date strings to datetime objects
         date_columns = ['Activity date', 'Matter open date', 'Matter pending date', 'Matter close date']
         for col in date_columns:
             if col in df.columns:
-                df[col] = pd.to_datetime(df[col], format='%m/%d/%Y', errors='coerce')
+                df[col] = pd.to_datetime(df[col], errors='coerce')
         
-        # Convert numeric columns with robust error handling
+        # Convert numeric columns
         numeric_columns = [
             'Tracked hours',
             'Billed & Unbilled hours',
@@ -44,16 +44,8 @@ def load_and_process_data():
         # Convert Matter description to string
         df['Matter description'] = df['Matter description'].fillna('').astype(str)
         
-        # Add missing columns if they don't exist
-        required_columns = [
-            'Activity quarter', 'Activity month', 'Originating attorney', 
-            'Practice area', 'Matter location', 'Matter status', 
-            'Billable matter', 'Matter billing method', 
-            'Company name', 'Contact full name (last, first)'
-        ]
-        for col in required_columns:
-            if col not in df.columns:
-                df[col] = ''
+        # Convert boolean columns
+        df['Billable matter'] = df['Billable matter'].fillna(0).astype(int)
         
         # Attorney levels mapping
         attorney_levels = {
@@ -168,11 +160,21 @@ def load_and_process_data():
         # Add year column for filtering
         df['year'] = df['Activity date'].dt.year
         
-        # Add missing information if not present
+        # Add quarter if not present
         if 'Activity quarter' not in df.columns:
             df['Activity quarter'] = df['Activity date'].dt.quarter.apply(lambda x: f'Q{x}')
+        
+        # Add month if not present
         if 'Activity month' not in df.columns:
             df['Activity month'] = df['Activity date'].dt.month_name()
+        
+        # Clean up specific columns
+        df['Matter location'] = df['Matter location'].fillna('').str.strip()
+        df['Practice area'] = df['Practice area'].fillna('').str.strip()
+        df['Matter status'] = df['Matter status'].fillna('').str.strip()
+        df['Matter billing method'] = df['Matter billing method'].fillna('').str.strip()
+        df['Company name'] = df['Company name'].fillna('').str.strip()
+        df['Contact full name (last, first)'] = df['Contact full name (last, first)'].fillna('').str.strip()
         
         return df
         
