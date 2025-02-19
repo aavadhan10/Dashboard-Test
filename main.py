@@ -5,137 +5,122 @@ import plotly.graph_objects as go
 from datetime import datetime
 import calendar
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=3600)  # Cache for 1 hour
 def load_and_process_data():
     """Load and process the CSV file and add attorney level information."""
     try:
-        # Load the CSV file directly
-        df = pd.read_csv('Test_Full_Year.csv')
-        
-        # Convert date columns to datetime
-        df['Activity date'] = pd.to_datetime(df['Activity date'])
-        if 'Matter pending date' in df.columns:
-            df['Matter pending date'] = pd.to_datetime(df['Matter pending date'])
-        if 'Matter close date' in df.columns:
-            df['Matter close date'] = pd.to_datetime(df['Matter close date'])
+        # Load the CSV file with explicit date parsing
+        df = pd.read_csv('Test_Full_Year.csv', 
+                        parse_dates=['Activity date', 'Matter open date', 'Matter pending date', 'Matter close date'],
+                        date_parser=lambda x: pd.to_datetime(x, format='mixed'))
         
         # Convert Matter description to string
         df['Matter description'] = df['Matter description'].fillna('').astype(str)
         
-        # Debug: Print unique attorney names before mapping
-        print("Unique attorney names in data:", sorted(df['User full name (first, last)'].unique()))
-        
-        # Attorney levels mapping
+        # Attorney levels mapping - complete mapping for all attorneys
         attorney_levels = {
-            'Adrian Dirassar': 'Senior Counsel',
-            'Adrian Roomes': 'Mid-Level Counsel',
-            'Ajay Krishnan': 'Mid-Level Counsel',
-            'Alexander James Stack': 'Senior Counsel',
-            'Aliza Dason': 'Counsel',
-            'Andrea Freund': 'Senior Counsel',
-            'Alan Sless': 'Senior Counsel',
-            'Annie Belecki': 'Senior Counsel',
-            'Anjali Ekta Banka': 'Senior Counsel',
-            'Anthony Shapiro': 'Senior Counsel',
-            'Antoine Malek': 'Senior Counsel',
-            'April Pettigrew': 'Corporate Document Assistant',
-            'Avril Hasselfield': 'Senior Counsel',
-            'Benjamin Derek Rovet': 'Senior Counsel',
-            'Beth Gearing': 'Senior Counsel',
-            'Bill Stanger': 'Senior Counsel',
-            'Bill Herman': 'Senior Counsel',
-            'Binita Jacob': 'Senior Counsel',
-            'Brenda Chandler': 'Senior Counsel',
-            'Bruce Baron': 'Senior Counsel',
-            'Cerise Latibeaudiere': 'Senior Counsel',
-            'Constance Wai Min Chan': 'Senior Counsel',
-            'Corrie Stepan': 'Senior Counsel',
-            'Cynthia Yang': 'Senior Counsel',
-            'Daniel Batista': 'Senior Counsel',
-            'Daniel Lawrence McKay': 'Senior Counsel',
-            'Dave McIntyre': 'Senior Counsel',
-            'David Dunbar': 'Senior Counsel',
-            'David Masse': 'Senior Counsel',
-            'David Bryan Zender': 'Senior Counsel',
-            'Dina Moore': 'Law Clerk',
-            'Doris Riker': 'Document Specialist',
-            'Ebony Stoffels': 'Law Clerk',
-            'Ellen Victoria Swan': 'Senior Counsel',
-            'Elyse Mallins': 'Senior Counsel',
-            'Ernest Belyea': 'Senior Counsel',
-            'Esia (Theodosia) Giaouris': 'Senior Counsel',
-            'Eva Melamed': 'Senior Counsel',
-            'Evelyn Ackah': 'Senior Counsel',
-            'Frances Petryshen': 'Corporate Secretary',
-            'Frank Gary Giblon': 'Senior Counsel',
-            'Glen Harder': 'Senior Counsel',
-            'Greg Porter': 'Senior Counsel',
-            'Greg Ramsay': 'Senior Counsel',
-            'Hamish Cumming': 'Senior Counsel',
-            'Hugh Kerr': 'Senior Counsel',
-            'Ian Alexander Ness': 'Senior Counsel',
-            'Iana Namestnikova': 'Mid-Level Counsel',
-            'James Oborne': 'Mid-Level Counsel',
-            'Jason Lakhan': 'Senior Counsel',
-            'Jeff Bright': 'Senior Counsel',
-            'Jeffrey David Klam': 'Senior Counsel',
-            'Jeremy Budd': 'Senior Counsel',
-            'Joel Guralnick': 'Senior Counsel',
-            'John Tyrrell': 'Senior Counsel',
-            'John Whyte': 'Senior Counsel',
-            'Josee Cameron-Virgo': 'Senior Counsel',
-            'Judy Hyeonseon Chun': 'Senior Counsel',
-            'Kendall Barban': 'Start-Up Lawyer',
-            'Kevin Michael Shnier': 'Senior Counsel',
-            'Kim Guy Von Arx': 'Senior Counsel',
-            'Lance Lehman': 'Senior Counsel',
-            'Leonard Gaik': 'Senior Counsel',
-            'Leslie Allan': 'Senior Counsel',
-            'Lisa Conway': 'Senior Counsel',
-            'Lisa McDowell': 'Senior Counsel',
-            'Lori Lyn Adams': 'Senior Counsel',
-            'Luke Kuzio': 'Senior Counsel',
-            'Mark Wainman': 'Senior Counsel',
-            'Meenal Gole': 'Corporate Secretary',
-            'Melissa Babel': 'Senior Counsel',
-            'Michael Fitzgerald': 'Senior Counsel',
-            'Michele Koyle': 'Senior Counsel',
-            'Michelle Grant-Asselin': 'Law Clerk',
-            'Monica Goyal': 'Senior Counsel',
-            'Morli Shemesh': 'Senior Counsel',
-            'Neil Kothari': 'Senior Counsel',
-            'Nikki Stewart-St. Arnault': 'Senior Counsel',
-            'Olivia Dutka': 'Law Clerk',
-            'Patrick Dolan': 'Senior Counsel',
-            'Peter Torn': 'Senior Counsel',
-            'Peter Dale': 'Senior Counsel',
-            'Peter Goode': 'Senior Counsel',
-            'Peter Prattas': 'Senior Counsel',
-            'Peter Kalins': 'Senior Counsel',
-            'Philippe Chouinard-Rousseau': 'Senior Counsel',
-            'Randall Witten': 'Senior Counsel',
-            'Robert Bosenius': 'Senior Counsel',
-            'Rose Oushalkas': 'Senior Counsel',
-            'Sarah Blackburn': 'Counsel',
-            'Sara Kunto': 'Senior Counsel',
-            'Sarah Sidhu': 'Senior Counsel',
-            'Sean Mitra': 'Mid-Level Counsel',
-            'Sean Williamson': 'Counsel',
-            'Seung-Yoon Lisa Lee': 'Senior Counsel',
-            'Sherry Roxanne Hanlon': 'Senior Counsel',
-            'Simon Brian Anthony Rawson Levett': 'Senior Counsel',
-            'Solange Brard': 'Senior Counsel',
-            'Sonny Bhalla': 'Senior Counsel',
-            'Stephen Dan Black': 'Senior Counsel',
-            'Sue Gaudi': 'Senior Counsel',
-            'Susan Rai': 'Senior Counsel',
-            'Tim Froese': 'Senior Counsel',
-            'Tracey Lynn Durand': 'Senior Counsel',
-            'Vinoja Wichweswaran': 'Mid-Level Counsel',
-            'Wanda Shreve': 'Senior Counsel',
-            'Wendy Bach': 'Senior Counsel',
-            'Yah Yao': 'Senior Counsel',
-            'Zoe Rossolatos': 'Senior Counsel'
+            'Aaron Swerdlow': 'Senior Counsel',
+            'Aidan Toombs': 'Mid-Level Counsel',
+            'Alexander Gershen': 'Senior Counsel',
+            'Alexander Slafkosky': 'Senior Counsel',
+            'Alfred Bridi': 'Senior Counsel',
+            'Aliona Ierega': 'Mid-Level Counsel',
+            'Amy Duvanich': 'Senior Counsel',
+            'Andres Idarraga': 'Senior Counsel',
+            'Andy Baxter': 'Mid-Level Counsel',
+            'Antigone Peyton': 'Senior Counsel',
+            'Ayala Magder': 'Senior Counsel',
+            'Benjamin Golopol': 'Mid-Level Counsel',
+            'Brian Detwiler': 'Senior Counsel',
+            'Brian Elliott': 'Senior Counsel',
+            'Brian Hicks': 'Senior Counsel',
+            'Brian McEvoy': 'Senior Counsel',
+            'Brian Scherer': 'Senior Counsel',
+            'Caitlin Cunningham': 'Mid-Level Counsel',
+            'Cary Ullman': 'Senior Counsel',
+            'Channah Rose': 'Mid-Level Counsel',
+            'Charles Caliman': 'Senior Counsel',
+            'Charles Wallace': 'Senior Counsel',
+            'Chris Geyer': 'Senior Counsel',
+            'Chris Jones': 'Mid-Level Counsel',
+            'Christopher Grewe': 'Senior Counsel',
+            'Chuck Kraus': 'Senior Counsel',
+            'Corey Pedersen': 'Senior Counsel',
+            'Darren Collins (DS)': 'Document Specialist',
+            'David Lundeen': 'Senior Counsel',
+            'Derek Gilman': 'Senior Counsel',
+            'Donica Forensich': 'Mid-Level Counsel',
+            'Dori Karjian': 'Senior Counsel',
+            'Doug Mitchell': 'Senior Counsel',
+            'Elliott Gee (DS)': 'Document Specialist',
+            'Emma Thompson': 'Senior Counsel',
+            'Eric Blatt': 'Senior Counsel',
+            'Erica Shepard': 'Senior Counsel',
+            'Garrett Ordower': 'Senior Counsel',
+            'Gregory Winter': 'Senior Counsel',
+            'Hannah Valdez': 'Mid-Level Counsel',
+            'Heather Cantua': 'Mid-Level Counsel',
+            'Henry Ciocca': 'Senior Counsel',
+            'Jacqueline Post Ladha': 'Senior Counsel',
+            'James Cashel': 'Mid-Level Counsel',
+            'James Creedon': 'Senior Counsel',
+            'Jamie Wells': 'Senior Counsel',
+            'Jason Altieri': 'Senior Counsel',
+            'Jason Harrison': 'Mid-Level Counsel',
+            'Jeff Lord': 'Senior Counsel',
+            'Jeff Love': 'Senior Counsel',
+            'Jenna Geuke': 'Mid-Level Counsel',
+            'Joanne Wolforth': 'Mid-Level Counsel',
+            'John Mitnick': 'Senior Counsel',
+            'Jonathan Van Loo': 'Senior Counsel',
+            'Joseph Kiefer': 'Mid-Level Counsel',
+            'Josh Banerje': 'Mid-Level Counsel',
+            'Julie Snyder': 'Senior Counsel',
+            'Julien Apollon': 'Mid-Level Counsel',
+            'Justin McAnaney': 'Mid-Level Counsel',
+            'Katy Barreto': 'Senior Counsel',
+            'Katy Reamon': 'Mid-Level Counsel',
+            'Kimberly Griffin': 'Mid-Level Counsel',
+            'Kirby Drake': 'Senior Counsel',
+            'Kristen Dayley': 'Senior Counsel',
+            'Kristin Bohm': 'Mid-Level Counsel',
+            'Lauren Titolo': 'Mid-Level Counsel',
+            'Lindsey Altmeyer': 'Senior Counsel',
+            'M. Sidney Donica': 'Senior Counsel',
+            'Marissa Fox': 'Senior Counsel',
+            'Mary Spooner': 'Senior Counsel',
+            'Matthew Angelo': 'Senior Counsel',
+            'Matthew Dowd (DS)': 'Document Specialist',
+            'Maureen Bumgarner': 'Mid-Level Counsel',
+            'Melissa Balough': 'Senior Counsel',
+            'Melissa Clarke': 'Senior Counsel',
+            'Michael Keskey': 'Mid-Level Counsel',
+            'Michelle Maticic': 'Senior Counsel',
+            'Natasha Fedder': 'Senior Counsel',
+            'Nicole Baldocchi': 'Senior Counsel',
+            'Nora Wong': 'Mid-Level Counsel',
+            'Ornella Bourne': 'Mid-Level Counsel',
+            'Rainer Scarton': 'Mid-Level Counsel',
+            'Robert Gans': 'Senior Counsel',
+            'Robin Shofner': 'Senior Counsel',
+            'Robyn Marcello': 'Mid-Level Counsel',
+            'Sabina Schiller': 'Mid-Level Counsel',
+            'Samer Korkor': 'Senior Counsel',
+            'Sara Rau Frumkin': 'Senior Counsel',
+            'Scale LLP': 'Other',
+            'Scott Wiegand': 'Senior Counsel',
+            'Shailika Kotiya': 'Mid-Level Counsel',
+            'Shannon Straughan': 'Senior Counsel',
+            'Stephen Bosco': 'Mid-Level Counsel',
+            'Steve Forbes': 'Senior Counsel',
+            'Steve Zagami, Paralegal': 'Paralegal',
+            'Thomas Soave': 'Mid-Level Counsel',
+            'Thomas Stine': 'Senior Counsel',
+            'Tim Furin': 'Senior Counsel',
+            'Trey Calver': 'Senior Counsel',
+            'Tyler Hayden': 'Mid-Level Counsel',
+            'Whitney Joubert': 'Senior Counsel',
+            'Zach Ruby': 'Mid-Level Counsel'
         }
         
         # Clean attorney names before mapping (remove extra spaces)
@@ -144,23 +129,29 @@ def load_and_process_data():
         # Add attorney level column
         df['Attorney level'] = df['User full name (first, last)'].map(attorney_levels)
         
-        # Debug: Print mapping results
-        print("\nUnique attorney levels after mapping:", df['Attorney level'].unique())
-        print("\nSample of mapped data:")
-        print(df[['User full name (first, last)', 'Attorney level']].head(10))
-        
-        # Debug: Print unmapped attorneys
-        unmapped = df[df['Attorney level'].isna()]['User full name (first, last)'].unique()
-        if len(unmapped) > 0:
-            print("\nUnmapped attorneys:", unmapped)
-        
         # Calculate additional metrics
-        df['Total hours'] = df['Billable hours'] + df['Non-billable hours']
-        df['Utilization rate'] = (df['Billable hours'] / df['Total hours'] * 100).fillna(0)
+        df['Total hours'] = df['Billable hours'].fillna(0) + df['Non-billable hours'].fillna(0)
+        df['Utilization rate'] = (df['Billable hours'].fillna(0) / df['Total hours'] * 100).fillna(0)
+        
+        # Extract year, month, and quarter from Activity date
+        df['Activity year'] = df['Activity date'].dt.year
+        df['Activity month'] = df['Activity date'].dt.month
+        df['Activity quarter'] = df['Activity date'].dt.quarter
+        
+        # Calculate billing metrics
+        df['Billable hours'] = df['Billed & Unbilled hours'].fillna(0)
+        df['Billable hours amount'] = df['Billed & Unbilled hours value'].fillna(0)
+        df['Billed hours'] = df['Billed hours'].fillna(0)
+        df['Billed hours amount'] = df['Billed hours value'].fillna(0)
+        df['Unbilled hours'] = df['Unbilled hours'].fillna(0)
+        df['Unbilled hours amount'] = df['Unbilled hours value'].fillna(0)
+        df['Non-billable hours'] = df['Non-billable hours'].fillna(0)
+        df['Non-billable hours amount'] = df['Non-billable hours value'].fillna(0)
         
         return df
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
+        print(f"Detailed error information: {str(e)}")  # Additional debug information
         return None
 
 def create_sidebar_filters(df):
