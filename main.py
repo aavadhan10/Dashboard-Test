@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
 import calendar
+import numpy as np
 
 # Configuration and setup
 st.set_page_config(page_title="Legal Dashboard", layout="wide")
@@ -21,7 +22,7 @@ def load_and_process_data():
             if col in df.columns:
                 df[col] = pd.to_datetime(df[col], format='%m/%d/%Y', errors='coerce')
         
-        # Convert numeric columns
+        # Convert numeric columns with robust error handling
         numeric_columns = [
             'Tracked hours',
             'Billed & Unbilled hours',
@@ -42,6 +43,17 @@ def load_and_process_data():
         
         # Convert Matter description to string
         df['Matter description'] = df['Matter description'].fillna('').astype(str)
+        
+        # Add missing columns if they don't exist
+        required_columns = [
+            'Activity quarter', 'Activity month', 'Originating attorney', 
+            'Practice area', 'Matter location', 'Matter status', 
+            'Billable matter', 'Matter billing method', 
+            'Company name', 'Contact full name (last, first)'
+        ]
+        for col in required_columns:
+            if col not in df.columns:
+                df[col] = ''
         
         # Attorney levels mapping
         attorney_levels = {
@@ -151,19 +163,23 @@ def load_and_process_data():
         
         # Clean attorney names and add level
         df['User full name (first, last)'] = df['User full name (first, last)'].str.strip()
-        df['Attorney level'] = df['User full name (first, last)'].map(attorney_levels)
+        df['Attorney level'] = df['User full name (first, last)'].map(attorney_levels).fillna('Unknown')
         
         # Add year column for filtering
         df['year'] = df['Activity date'].dt.year
+        
+        # Add missing information if not present
+        if 'Activity quarter' not in df.columns:
+            df['Activity quarter'] = df['Activity date'].dt.quarter.apply(lambda x: f'Q{x}')
+        if 'Activity month' not in df.columns:
+            df['Activity month'] = df['Activity date'].dt.month_name()
         
         return df
         
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
-        print(f"Detailed error information: {str(e)}")
         import traceback
-        print("Full traceback:")
-        print(traceback.format_exc())
+        st.error(traceback.format_exc())
         return None
 
 def create_sidebar_filters(df):
@@ -189,7 +205,8 @@ def create_sidebar_filters(df):
         
         selected_quarter = st.selectbox(
             "Quarter",
-            options=sorted(df['Activity quarter'].unique())
+            options=sorted(df['Activity quarter'].unique()),
+            index=0
         )
         
         selected_months = st.multiselect(
@@ -488,7 +505,7 @@ def create_visualizations(df):
     """Create all visualizations for the dashboard."""
     if df.empty:
         st.warning("No data available to create visualizations.")
-        return
+        return None, None, None
     
     try:
         # Hours Distribution
@@ -522,7 +539,7 @@ def create_visualizations(df):
             barmode='group'
         )
         
-        # Attorney Performance
+        # Attorney Performance 
         attorney_data = df.groupby('User full name (first, last)').agg({
             'Billed & Unbilled hours': 'sum',
             'Billed hours': 'sum',
@@ -532,13 +549,28 @@ def create_visualizations(df):
         
         attorney_data['Utilization Rate'] = (
             attorney_data['Billed & Unbilled hours'] / attorney_data['Tracked hours'] * 100
-        ).round(2)
+        ).fillna(0).replace([np.inf, -np.inf], 0)
+        
+        # Safe scatter plot: filter out NaN values and handle size carefully
+        attorney_data_clean = attorney_data[
+            attorney_data['Billed & Unbilled hours'].notna() & 
+            attorney_data['Billed & Unbilled hours value'].notna() &
+            (attorney_data['Utilization Rate'].notna())
+        ]
+        
+        # Normalize size for scatter plot
+        min_size = 5
+        max_size = 20
+        attorney_data_clean['marker_size'] = (
+            (attorney_data_clean['Utilization Rate'] - attorney_data_clean['Utilization Rate'].min()) / 
+            (attorney_data_clean['Utilization Rate'].max() - attorney_data_clean['Utilization Rate'].min())
+        ) * (max_size - min_size) + min_size
         
         fig_attorney = px.scatter(
-            attorney_data,
+            attorney_data_clean,
             x='Billed & Unbilled hours',
             y='Billed & Unbilled hours value',
-            size='Utilization Rate',
+            size='marker_size',
             hover_name='User full name (first, last)',
             title='Attorney Performance'
         )
