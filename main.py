@@ -9,15 +9,19 @@ import calendar
 def load_and_process_data():
     """Load and process the CSV file and add attorney level information."""
     try:
-        # Load the CSV file with explicit date parsing
-        df = pd.read_csv('Test_Full_Year.csv', 
-                        parse_dates=['Activity date', 'Matter open date', 'Matter pending date', 'Matter close date'],
-                        date_parser=lambda x: pd.to_datetime(x, format='mixed'))
+        # Load the CSV file without date parsing since dates are already split
+        df = pd.read_csv('Test_Full_Year.csv')
+        
+        # Convert date strings to datetime objects
+        date_columns = ['Activity date', 'Matter open date', 'Matter pending date', 'Matter close date']
+        for col in date_columns:
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col], format='%m/%d/%Y', errors='coerce')
         
         # Convert Matter description to string
         df['Matter description'] = df['Matter description'].fillna('').astype(str)
         
-        # Attorney levels mapping - complete mapping for all attorneys
+        # Attorney levels mapping
         attorney_levels = {
             'Aaron Swerdlow': 'Senior Counsel',
             'Aidan Toombs': 'Mid-Level Counsel',
@@ -129,16 +133,15 @@ def load_and_process_data():
         # Add attorney level column
         df['Attorney level'] = df['User full name (first, last)'].map(attorney_levels)
         
-        # Calculate additional metrics
-        df['Total hours'] = df['Billable hours'].fillna(0) + df['Non-billable hours'].fillna(0)
-        df['Utilization rate'] = (df['Billable hours'].fillna(0) / df['Total hours'] * 100).fillna(0)
+        # Debug: Print unmapped attorneys
+        unmapped = df[df['Attorney level'].isna()]['User full name (first, last)'].unique()
+        if len(unmapped) > 0:
+            print("\nUnmapped attorneys:", unmapped)
         
-        # Extract year, month, and quarter from Activity date
-        df['Activity year'] = df['Activity date'].dt.year
-        df['Activity month'] = df['Activity date'].dt.month
-        df['Activity quarter'] = df['Activity date'].dt.quarter
+        # Note: Activity year, month, and quarter are already in the data
+        # No need to extract them from Activity date
         
-        # Calculate billing metrics
+        # Calculate billing metrics - using the columns as they appear in your data
         df['Billable hours'] = df['Billed & Unbilled hours'].fillna(0)
         df['Billable hours amount'] = df['Billed & Unbilled hours value'].fillna(0)
         df['Billed hours'] = df['Billed hours'].fillna(0)
@@ -148,10 +151,17 @@ def load_and_process_data():
         df['Non-billable hours'] = df['Non-billable hours'].fillna(0)
         df['Non-billable hours amount'] = df['Non-billable hours value'].fillna(0)
         
+        # Calculate total hours and utilization rate
+        df['Total hours'] = df['Tracked hours'].fillna(0)  # Using provided Tracked hours
+        df['Utilization rate'] = df['Utilization rate'].fillna(0)  # Using provided Utilization rate
+        
         return df
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
-        print(f"Detailed error information: {str(e)}")  # Additional debug information
+        print(f"Detailed error information: {str(e)}")
+        import traceback
+        print("Full traceback:")
+        print(traceback.format_exc())
         return None
 
 def create_sidebar_filters(df):
