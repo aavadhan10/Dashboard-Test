@@ -5,11 +5,12 @@ import plotly.graph_objects as go
 from datetime import datetime
 import calendar
 
+@st.cache_data(ttl=3600)
 def load_and_process_data():
     """Load and process the CSV file and add attorney level information."""
     try:
         # Load the CSV file directly
-        df = pd.read_csv('Test.csv')
+        df = pd.read_csv('Test_Full_Year.csv')
         
         # Convert date columns to datetime
         df['Activity date'] = pd.to_datetime(df['Activity date'])
@@ -943,6 +944,9 @@ def create_client_metrics_table(df):
 def main():
     st.set_page_config(page_title="Legal Dashboard", layout="wide")
     st.title("Scale Management Dashboard")
+    
+    with st.spinner('Loading data...'):
+        df = load_and_process_data()
     
     # Add refresh date to header
     st.markdown(
