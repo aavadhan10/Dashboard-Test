@@ -352,7 +352,7 @@ def filter_data(df, filters):
     
     # Time filters
     if filters['year']:
-        filtered_df = filtered_df[filtered_df['Activity year'] == filters['year']]
+        filtered_df = filtered_df[filtered_df['year'] == filters['year']]
     if filters['quarter']:
         filtered_df = filtered_df[filtered_df['Activity quarter'] == filters['quarter']]
     if filters['months']:
@@ -390,11 +390,11 @@ def filter_data(df, filters):
     
     # Financial filters
     if filters['min_amount'] > 0:
-        filtered_df = filtered_df[filtered_df['Billed & Unbilled hours value'] >= filters['min_amount']]
+        filtered_df = filtered_df[pd.to_numeric(filtered_df['Billed & Unbilled hours value'], errors='coerce').fillna(0) >= filters['min_amount']]
     if len(filters['rate_range']) == 2:
         filtered_df = filtered_df[
-            (filtered_df['User rate'] >= filters['rate_range'][0]) &
-            (filtered_df['User rate'] <= filters['rate_range'][1])
+            (pd.to_numeric(filtered_df['User rate'], errors='coerce').fillna(0) >= filters['rate_range'][0]) &
+            (pd.to_numeric(filtered_df['User rate'], errors='coerce').fillna(0) <= filters['rate_range'][1])
         ]
     
     # Client filters
@@ -409,8 +409,14 @@ def filter_data(df, filters):
         valid_clients = client_hours[client_hours >= filters['min_client_hours']].index
         filtered_df = filtered_df[filtered_df['Matter description'].isin(valid_clients)]
     
+    # Debug: Print final state
+    print(f"\nFinal dataframe size: {len(filtered_df)}")
+    if len(filtered_df) == 0:
+        print("WARNING: Filtering resulted in empty dataframe!")
+        print("Filter values that were applied:", {k: v for k, v in filters.items() if v})
+    
     return filtered_df
-
+    
 def calculate_filtered_metrics(df):
     """Calculate metrics with proper handling of flat fees."""
     work_df = df.copy()
