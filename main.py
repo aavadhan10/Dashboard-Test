@@ -4,7 +4,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
 import calendar
-import numpy as np
 
 # Configuration and setup
 st.set_page_config(page_title="Legal Dashboard", layout="wide")
@@ -22,7 +21,7 @@ def load_and_process_data():
             if col in df.columns:
                 df[col] = pd.to_datetime(df[col], format='%m/%d/%Y', errors='coerce')
         
-        # Convert numeric columns with robust error handling
+        # Convert numeric columns
         numeric_columns = [
             'Tracked hours',
             'Billed & Unbilled hours',
@@ -43,17 +42,6 @@ def load_and_process_data():
         
         # Convert Matter description to string
         df['Matter description'] = df['Matter description'].fillna('').astype(str)
-        
-        # Add missing columns if they don't exist
-        required_columns = [
-            'Activity quarter', 'Activity month', 'Originating attorney', 
-            'Practice area', 'Matter location', 'Matter status', 
-            'Billable matter', 'Matter billing method', 
-            'Company name', 'Contact full name (last, first)'
-        ]
-        for col in required_columns:
-            if col not in df.columns:
-                df[col] = ''
         
         # Attorney levels mapping
         attorney_levels = {
@@ -163,23 +151,19 @@ def load_and_process_data():
         
         # Clean attorney names and add level
         df['User full name (first, last)'] = df['User full name (first, last)'].str.strip()
-        df['Attorney level'] = df['User full name (first, last)'].map(attorney_levels).fillna('Unknown')
+        df['Attorney level'] = df['User full name (first, last)'].map(attorney_levels)
         
         # Add year column for filtering
         df['year'] = df['Activity date'].dt.year
-        
-        # Add missing information if not present
-        if 'Activity quarter' not in df.columns:
-            df['Activity quarter'] = df['Activity date'].dt.quarter.apply(lambda x: f'Q{x}')
-        if 'Activity month' not in df.columns:
-            df['Activity month'] = df['Activity date'].dt.month_name()
         
         return df
         
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
+        print(f"Detailed error information: {str(e)}")
         import traceback
-        st.error(traceback.format_exc())
+        print("Full traceback:")
+        print(traceback.format_exc())
         return None
 
 def create_sidebar_filters(df):
@@ -205,8 +189,7 @@ def create_sidebar_filters(df):
         
         selected_quarter = st.selectbox(
             "Quarter",
-            options=sorted(df['Activity quarter'].unique()),
-            index=0
+            options=sorted(df['Activity quarter'].unique())
         )
         
         selected_months = st.multiselect(
@@ -370,70 +353,68 @@ def create_sidebar_filters(df):
 def filter_data(df, filters):
     """Apply filters to the dataframe."""
     try:
-        # Print initial dataframe info for debugging
-        st.write(f"Initial dataframe shape: {df.shape}")
-        st.write("Initial columns:", df.columns.tolist())
-        
         filtered_df = df.copy()
-        
-        # Debug print for each filter
-        st.write("Applied Filters:")
         
         # Time filters
         if filters['year']:
-            st.write(f"Year filter: {filters['year']}")
             filtered_df = filtered_df[filtered_df['year'] == filters['year']]
-            st.write(f"After year filter: {filtered_df.shape}")
-        
         if filters['quarter']:
-            st.write(f"Quarter filter: {filters['quarter']}")
             filtered_df = filtered_df[filtered_df['Activity quarter'] == filters['quarter']]
-            st.write(f"After quarter filter: {filtered_df.shape}")
-        
         if filters['months']:
-            st.write(f"Months filter: {filters['months']}")
             filtered_df = filtered_df[filtered_df['Activity month'].isin(filters['months'])]
-            st.write(f"After months filter: {filtered_df.shape}")
-        
         if len(filters['date_range']) == 2:
-            st.write(f"Date range filter: {filters['date_range']}")
             filtered_df = filtered_df[
                 (filtered_df['Activity date'].dt.date >= filters['date_range'][0]) &
                 (filtered_df['Activity date'].dt.date <= filters['date_range'][1])
             ]
-            st.write(f"After date range filter: {filtered_df.shape}")
         
         # Attorney filters
         if filters['attorney_levels']:
-            st.write(f"Attorney levels filter: {filters['attorney_levels']}")
             filtered_df = filtered_df[filtered_df['Attorney level'].isin(filters['attorney_levels'])]
-            st.write(f"After attorney levels filter: {filtered_df.shape}")
-        
         if filters['attorneys']:
-            st.write(f"Attorneys filter: {filters['attorneys']}")
             filtered_df = filtered_df[filtered_df['User full name (first, last)'].isin(filters['attorneys'])]
-            st.write(f"After attorneys filter: {filtered_df.shape}")
-        
         if filters['originating_attorneys']:
-            st.write(f"Originating attorneys filter: {filters['originating_attorneys']}")
             filtered_df = filtered_df[filtered_df['Originating attorney'].isin(filters['originating_attorneys'])]
-            st.write(f"After originating attorneys filter: {filtered_df.shape}")
         
-        # Add similar debug prints for other filter sections...
+        # Practice area filters
+        if filters['practice_areas']:
+            filtered_df = filtered_df[filtered_df['Practice area'].isin(filters['practice_areas'])]
+        if filters['locations']:
+            filtered_df = filtered_df[filtered_df['Matter location'].isin(filters['locations'])]
+        
+        # Matter filters
+        if filters['matter_status']:
+            filtered_df = filtered_df[filtered_df['Matter status'].isin(filters['matter_status'])]
+        if filters['billable_matter']:
+            filtered_df = filtered_df[filtered_df['Billable matter'].isin(filters['billable_matter'])]
+        if filters['billing_methods']:
+            filtered_df = filtered_df[filtered_df['Matter billing method'].isin(filters['billing_methods'])]
+        
+        # Financial filters
+        if filters['min_amount'] > 0:
+            filtered_df = filtered_df[filtered_df['Billed & Unbilled hours value'] >= filters['min_amount']]
+        if len(filters['rate_range']) == 2:
+            filtered_df = filtered_df[
+                (filtered_df['User rate'] >= filters['rate_range'][0]) &
+                (filtered_df['User rate'] <= filters['rate_range'][1])
+            ]
+        
+        # Client filters
+        if filters['companies']:
+            filtered_df = filtered_df[filtered_df['Company name'].isin(filters['companies'])]
+        if filters['clients']:
+            filtered_df = filtered_df[filtered_df['Contact full name (last, first)'].isin(filters['clients'])]
+        if filters['matters']:
+            filtered_df = filtered_df[filtered_df['Matter description'].isin(filters['matters'])]
         
         if len(filtered_df) == 0:
             st.warning("No data available for the selected filters. Please adjust your criteria.")
-            st.write("Original dataframe unique values:")
-            for col in ['year', 'Activity quarter', 'Activity month', 'Attorney level', 'User full name (first, last)', 'Originating attorney']:
-                st.write(f"{col}: {df[col].unique()}")
             return df
             
         return filtered_df
         
     except Exception as e:
         st.error(f"Error applying filters: {str(e)}")
-        import traceback
-        st.error(traceback.format_exc())
         return df
 
 def calculate_metrics(df):
@@ -505,14 +486,9 @@ def display_metrics(metrics):
 
 def create_visualizations(df):
     """Create all visualizations for the dashboard."""
-    # Add extensive debugging
-    st.write("Visualization Function Debug:")
-    st.write(f"Input dataframe shape: {df.shape}")
-    st.write("Input dataframe columns:", list(df.columns))
-    
     if df.empty:
         st.warning("No data available to create visualizations.")
-        return None, None, None
+        return
     
     try:
         # Hours Distribution
@@ -524,7 +500,6 @@ def create_visualizations(df):
                 df['Unbilled hours'].sum()
             ]
         })
-        st.write("Hours Distribution Data:", hours_data)
         
         fig_hours = px.pie(
             hours_data,
@@ -538,7 +513,6 @@ def create_visualizations(df):
             'Billed & Unbilled hours': 'sum',
             'Billed & Unbilled hours value': 'sum'
         }).reset_index()
-        st.write("Practice Area Data:", practice_data)
         
         fig_practice = px.bar(
             practice_data,
@@ -548,75 +522,31 @@ def create_visualizations(df):
             barmode='group'
         )
         
-        # Attorney Performance 
+        # Attorney Performance
         attorney_data = df.groupby('User full name (first, last)').agg({
             'Billed & Unbilled hours': 'sum',
             'Billed hours': 'sum',
             'Billed & Unbilled hours value': 'sum',
             'Tracked hours': 'sum'
         }).reset_index()
-        st.write("Attorney Performance Data:", attorney_data)
         
-        # Safely calculate utilization rate
-        attorney_data['Utilization Rate'] = np.where(
-            attorney_data['Tracked hours'] > 0,
-            (attorney_data['Billed & Unbilled hours'] / attorney_data['Tracked hours'] * 100),
-            0
+        attorney_data['Utilization Rate'] = (
+            attorney_data['Billed & Unbilled hours'] / attorney_data['Tracked hours'] * 100
+        ).round(2)
+        
+        fig_attorney = px.scatter(
+            attorney_data,
+            x='Billed & Unbilled hours',
+            y='Billed & Unbilled hours value',
+            size='Utilization Rate',
+            hover_name='User full name (first, last)',
+            title='Attorney Performance'
         )
-        
-        # Prepare data for scatter plot with robust size handling
-        attorney_data_clean = attorney_data[
-            attorney_data['Billed & Unbilled hours'].notna() & 
-            attorney_data['Billed & Unbilled hours value'].notna()
-        ].copy()
-        
-        # Create a safe size column with a default minimum
-        min_size = 5
-        max_size = 20
-        
-        # Normalize size, handling potential edge cases
-        if len(attorney_data_clean) > 0:
-            # Ensure we don't divide by zero or use NaN
-            utilization_rates = attorney_data_clean['Utilization Rate'].fillna(0)
-            rate_min = utilization_rates.min()
-            rate_max = utilization_rates.max()
-            
-            if rate_max > rate_min:
-                attorney_data_clean['marker_size'] = (
-                    (utilization_rates - rate_min) / (rate_max - rate_min)
-                ) * (max_size - min_size) + min_size
-            else:
-                # If all rates are the same, use a constant size
-                attorney_data_clean['marker_size'] = min_size
-        else:
-            # If no data, return existing visualizations
-            return fig_hours, fig_practice, None
-        
-        # Ensure marker_size is numeric and has no NaNs
-        attorney_data_clean['marker_size'] = attorney_data_clean['marker_size'].fillna(min_size).clip(min_size, max_size)
-        
-        # Create scatter plot
-        fig_attorney = go.Figure(data=go.Scatter(
-            x=attorney_data_clean['Billed & Unbilled hours'],
-            y=attorney_data_clean['Billed & Unbilled hours value'],
-            mode='markers',
-            marker=dict(
-                size=attorney_data_clean['marker_size'],
-                sizemode='area',
-                sizeref=2.*max(attorney_data_clean['marker_size'])/(40.**2),
-                sizemin=4
-            ),
-            text=attorney_data_clean['User full name (first, last)'],
-            hoverinfo='text+x+y'
-        ))
-        fig_attorney.update_layout(title='Attorney Performance')
         
         return fig_hours, fig_practice, fig_attorney
         
     except Exception as e:
         st.error(f"Error creating visualizations: {str(e)}")
-        import traceback
-        st.error(traceback.format_exc())
         return None, None, None
 
 def main():
@@ -643,36 +573,29 @@ def main():
         # Apply filters
         filtered_df = filter_data(df, filters)
         
-        # Debug filtering results
-        st.write(f"Original dataframe shape: {df.shape}")
-        st.write(f"Filtered dataframe shape: {filtered_df.shape}")
-        
         if not filtered_df.empty:
             # Calculate and display metrics
             metrics = calculate_metrics(filtered_df)
             display_metrics(metrics)
             
-            # Create visualizations USING THE FILTERED DATAFRAME
+            # Create visualizations
             fig_hours, fig_practice, fig_attorney = create_visualizations(filtered_df)
             
-            # More robust visualization display
-            if fig_hours is not None:
+            if fig_hours and fig_practice and fig_attorney:
+                # Display visualizations
                 col1, col2 = st.columns(2)
                 
                 with col1:
                     st.plotly_chart(fig_hours, use_container_width=True)
                 
                 with col2:
-                    if fig_practice is not None:
-                        st.plotly_chart(fig_practice, use_container_width=True)
-                    else:
-                        st.warning("Could not create Practice Area visualization")
+                    st.plotly_chart(fig_practice, use_container_width=True)
                 
-                if fig_attorney is not None:
-                    st.plotly_chart(fig_attorney, use_container_width=True)
-                else:
-                    st.warning("Could not create Attorney Performance visualization")
+                st.plotly_chart(fig_attorney, use_container_width=True)
         else:
             st.warning("No data available for the selected filters. Please adjust your criteria.")
     else:
         st.error("Error loading data. Please check the data source and try again.")
+
+if __name__ == "__main__":
+    main()
