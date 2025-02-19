@@ -224,7 +224,8 @@ def create_sidebar_filters(df):
             options=sorted(df['Originating attorney'].dropna().unique())
         )
         
-        # Safe handling of tracked hours
+        # Safe handling of tracked hours with proper numeric conversion
+        df['Tracked hours'] = pd.to_numeric(df['Tracked hours'], errors='coerce')
         tracked_hours_max = df['Tracked hours'].fillna(0).max()
         min_hours = st.slider(
             "Minimum Billable Hours",
@@ -265,7 +266,8 @@ def create_sidebar_filters(df):
     with filter_tabs[4]:  # Financial Filters
         st.subheader("Financial Metrics")
         
-        # Safe handling of billed hours value
+        # Safe handling of billed hours value with numeric conversion
+        df['Billed hours value'] = pd.to_numeric(df['Billed hours value'], errors='coerce')
         billed_value_max = df['Billed hours value'].fillna(0).max()
         min_amount = st.number_input(
             "Minimum Billable Amount",
@@ -274,7 +276,8 @@ def create_sidebar_filters(df):
             value=0.0
         )
         
-        # Safe handling of user rate range
+        # Safe handling of user rate range with numeric conversion
+        df['User rate'] = pd.to_numeric(df['User rate'], errors='coerce')
         user_rate_min = df['User rate'].fillna(0).min()
         user_rate_max = df['User rate'].fillna(0).max()
         rate_range = st.slider(
@@ -301,7 +304,8 @@ def create_sidebar_filters(df):
             options=sorted(df['Matter description'].unique())
         )
         
-        # Safe handling of client hours
+        # Safe handling of client hours with numeric conversion
+        df['Tracked hours'] = pd.to_numeric(df['Tracked hours'], errors='coerce')
         client_hours_max = df.groupby('Matter description')['Tracked hours'].sum().fillna(0).max()
         min_client_hours = st.slider(
             "Minimum Client Hours",
