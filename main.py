@@ -168,18 +168,6 @@ def create_sidebar_filters(df):
     """Create comprehensive sidebar filters including attorney level filter."""
     st.sidebar.header("Filters")
     
-    # Define attorney levels
-    ATTORNEY_LEVELS = [
-        "Senior Counsel",
-        "Mid-Level Counsel",
-        "Counsel",
-        "Law Clerk",
-        "Corporate Secretary",
-        "Document Specialist",
-        "Paralegal",
-        "Other"
-    ]
-    
     # Create tabs for filter categories
     filter_tabs = st.sidebar.tabs(["Time", "Attorneys", "Practice", "Matter", "Financial", "Clients"])
     
@@ -239,10 +227,11 @@ def create_sidebar_filters(df):
             options=sorted(df['Originating attorney'].dropna().unique())
         )
         
+        # Using the correct column name for billable hours
         min_hours = st.slider(
             "Minimum Billable Hours",
             min_value=0.0,
-            max_value=float(df['Billed & Unbilled hours'].max()),
+            max_value=float(df['Tracked hours'].max()),
             value=0.0
         )
 
@@ -270,7 +259,6 @@ def create_sidebar_filters(df):
             options=sorted(df['Billable matter'].dropna().unique())
         )
         
-        # Added Matter Billing Method filter
         selected_billing_methods = st.multiselect(
             "Matter Billing Method",
             options=sorted(df['Matter billing method'].dropna().unique())
@@ -278,10 +266,11 @@ def create_sidebar_filters(df):
 
     with filter_tabs[4]:  # Financial Filters
         st.subheader("Financial Metrics")
+        # Using correct column names for financial values
         min_amount = st.number_input(
             "Minimum Billable Amount",
             min_value=0.0,
-            max_value=float(df['Billed & Unbilled hours value'].max()),
+            max_value=float(df['Billed hours value'].max()),
             value=0.0
         )
         
@@ -294,28 +283,26 @@ def create_sidebar_filters(df):
 
     with filter_tabs[5]:  # Client Filters
         st.subheader("Client Information")
-        # Added Company Name filter
         selected_companies = st.multiselect(
             "Company Name",
             options=sorted(df['Company name'].dropna().unique())
         )
         
-        # Added Client Name filter
         selected_clients = st.multiselect(
             "Client Name",
             options=sorted(df['Contact full name (last, first)'].dropna().unique())
         )
         
-        # Matter Description filter (renamed for clarity)
         selected_matters = st.multiselect(
             "Matter Description",
             options=sorted(df['Matter description'].unique())
         )
         
+        # Using correct column for hours
         min_client_hours = st.slider(
             "Minimum Client Hours",
             min_value=0.0,
-            max_value=float(df.groupby('Matter description')['Billed & Unbilled hours'].sum().max()),
+            max_value=float(df.groupby('Matter description')['Tracked hours'].sum().max()),
             value=0.0
         )
 
@@ -338,12 +325,12 @@ def create_sidebar_filters(df):
         'locations': selected_locations,
         'matter_status': selected_matter_status,
         'billable_matter': billable_matter,
-        'billing_methods': selected_billing_methods,  # New
+        'billing_methods': selected_billing_methods,
         'min_amount': min_amount,
         'rate_range': rate_range,
-        'companies': selected_companies,  # New
-        'clients': selected_clients,  # New
-        'matters': selected_matters,  # Renamed from selected_clients
+        'companies': selected_companies,
+        'clients': selected_clients,
+        'matters': selected_matters,
         'min_client_hours': min_client_hours
     }
 
