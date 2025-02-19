@@ -9,7 +9,7 @@ import calendar
 def load_and_process_data():
     """Load and process the CSV file and add attorney level information."""
     try:
-        # Load the CSV file without date parsing since dates are already split
+        # Load the CSV file
         df = pd.read_csv('Test_Full_Year.csv')
         
         # Convert date strings to datetime objects
@@ -138,10 +138,7 @@ def load_and_process_data():
         if len(unmapped) > 0:
             print("\nUnmapped attorneys:", unmapped)
         
-        # Note: Activity year, month, and quarter are already in the data
-        # No need to extract them from Activity date
-        
-        # Calculate billing metrics - using the columns as they appear in your data
+        # Use the columns as they appear in your data
         df['Billable hours'] = df['Billed & Unbilled hours'].fillna(0)
         df['Billable hours amount'] = df['Billed & Unbilled hours value'].fillna(0)
         df['Billed hours'] = df['Billed hours'].fillna(0)
@@ -152,8 +149,8 @@ def load_and_process_data():
         df['Non-billable hours amount'] = df['Non-billable hours value'].fillna(0)
         
         # Calculate total hours and utilization rate
-        df['Total hours'] = df['Tracked hours'].fillna(0)  # Using provided Tracked hours
-        df['Utilization rate'] = df['Utilization rate'].fillna(0)  # Using provided Utilization rate
+        df['Total hours'] = df['Tracked hours'].fillna(0)
+        df['Utilization rate'] = df['Utilization rate'].fillna(0)
         
         return df
     except Exception as e:
@@ -202,14 +199,12 @@ def create_sidebar_filters(df):
     with filter_tabs[1]:  # Attorney Filters
         st.subheader("Attorney Information")
         
-        # Add attorney level filter
         selected_attorney_levels = st.multiselect(
             "Attorney Levels",
             options=sorted(df['Attorney level'].dropna().unique()),
             help="Select one or more attorney levels to filter"
         )
         
-        # Filter attorneys based on selected levels
         attorney_options = sorted(df['User full name (first, last)'].unique())
         if selected_attorney_levels:
             attorney_options = sorted([
@@ -227,7 +222,6 @@ def create_sidebar_filters(df):
             options=sorted(df['Originating attorney'].dropna().unique())
         )
         
-        # Using the correct column name for billable hours
         min_hours = st.slider(
             "Minimum Billable Hours",
             min_value=0.0,
@@ -266,7 +260,6 @@ def create_sidebar_filters(df):
 
     with filter_tabs[4]:  # Financial Filters
         st.subheader("Financial Metrics")
-        # Using correct column names for financial values
         min_amount = st.number_input(
             "Minimum Billable Amount",
             min_value=0.0,
@@ -298,7 +291,6 @@ def create_sidebar_filters(df):
             options=sorted(df['Matter description'].unique())
         )
         
-        # Using correct column for hours
         min_client_hours = st.slider(
             "Minimum Client Hours",
             min_value=0.0,
@@ -308,10 +300,9 @@ def create_sidebar_filters(df):
 
     # Display refresh information
     st.sidebar.markdown("---")
-    st.sidebar.markdown("**Last Data Refresh:** December 16, 2024")
+    st.sidebar.markdown("**Last Data Refresh:** " + datetime.now().strftime("%B %d, %Y"))
     st.sidebar.markdown("**Data Range:** November 2024 - Present")
 
-    # Return all filter values
     return {
         'year': selected_year,
         'quarter': selected_quarter,
@@ -357,17 +348,14 @@ def filter_data(df, filters):
     
     # Attorney level filter
     if filters['attorney_levels']:
-        print(f"\nAttempting to filter by attorney levels: {filters['attorney_levels']}")
-        print(f"Unique attorney levels before filter: {filtered_df['Attorney level'].unique()}")
         filtered_df = filtered_df[filtered_df['Attorney level'].isin(filters['attorney_levels'])]
-        print(f"Records remaining after attorney level filter: {len(filtered_df)}")
-        print(f"Remaining attorney levels: {filtered_df['Attorney level'].unique()}")
     
     # Attorney filters
     if filters['attorneys']:
-        print(f"\nAttempting to filter by attorneys: {filters['attorneys']}")
         filtered_df = filtered_df[filtered_df['User full name (first, last)'].isin(filters['attorneys'])]
-        print(f"Records remaining after attorney filter: {len(filtered_df)}")
+    
+    if filters['originating_attorneys']:
+        filtered_df = filtered_df[filtered_df['Originating attorney'].isin(filters['originating_attorneys'])]
     
     # Practice area filters
     if filters['practice_areas']:
@@ -378,66 +366,57 @@ def filter_data(df, filters):
     # Matter filters
     if filters['matter_status']:
         filtered_df = filtered_df[filtered_df['Matter status'].isin(filters['matter_status'])]
-    if filters['matter_stage']:
-        filtered_df = filtered_df[filtered_df['Matter stage'].isin(filters['matter_stage'])]
     if filters['billable_matter']:
         filtered_df = filtered_df[filtered_df['Billable matter'].isin(filters['billable_matter'])]
+    if filters['billing_methods']:
+        filtered_df = filtered_df[filtered_df['Matter billing method'].isin(filters['billing_methods'])]
     
     # Financial filters
     if filters['min_amount'] > 0:
-        filtered_df = filtered_df[filtered_df['Billable hours amount'] >= filters['min_amount']]
+        filtered_df = filtered_df[filtered_df['Billed & Unbilled hours value'] >= filters['min_amount']]
     if len(filters['rate_range']) == 2:
         filtered_df = filtered_df[
-            (filtered_df['Billable hours amount'] >= filters['rate_range'][0]) &
-            (filtered_df['Billable hours amount'] <= filters['rate_range'][1])
+            (filtered_df['User rate'] >= filters['rate_range'][0]) &
+            (filtered_df['User rate'] <= filters['rate_range'][1])
         ]
     
     # Client filters
+    if filters['companies']:
+        filtered_df = filtered_df[filtered_df['Company name'].isin(filters['companies'])]
     if filters['clients']:
-        filtered_df = filtered_df[filtered_df['Matter description'].isin(filters['clients'])]
+        filtered_df = filtered_df[filtered_df['Contact full name (last, first)'].isin(filters['clients'])]
+    if filters['matters']:
+        filtered_df = filtered_df[filtered_df['Matter description'].isin(filters['matters'])]
     if filters['min_client_hours'] > 0:
-        client_hours = filtered_df.groupby('Matter description')['Billable hours'].sum()
+        client_hours = filtered_df.groupby('Matter description')['Tracked hours'].sum()
         valid_clients = client_hours[client_hours >= filters['min_client_hours']].index
         filtered_df = filtered_df[filtered_df['Matter description'].isin(valid_clients)]
     
-    # Debug: Print final state
-    print(f"\nFinal dataframe size: {len(filtered_df)}")
-    if len(filtered_df) == 0:
-        print("WARNING: Filtering resulted in empty dataframe!")
-        print("Filter values that were applied:", {k: v for k, v in filters.items() if v})
-    
     return filtered_df
+
 def calculate_filtered_metrics(df):
-    """
-    Calculate metrics with proper handling of flat fees.
-    A flat fee is identified when:
-    1. Hours <= 1 AND amount >= 1500
-    2. OR Hours = 0
-    """
-    # Create a clean copy
+    """Calculate metrics with proper handling of flat fees."""
     work_df = df.copy()
     
-    # Identify flat fee entries more strictly
-    flat_fee_entries = work_df[
-        ((work_df['Billable hours'] <= 1) & (work_df['Billable hours amount'] >= 1500)) |
-        (work_df['Billable hours'] == 0)
-    ]
+    # Identify flat fee entries (billing method is 'Flat Rate' or special cases)
+    flat_fee_mask = (
+        (work_df['Matter billing method'] == 'Flat Rate') |
+        ((work_df['Billed & Unbilled hours'] <= 1) & (work_df['Billed & Unbilled hours value'] >= 1500)) |
+        (work_df['Billed & Unbilled hours'] == 0)
+    )
     
-    # Identify hourly entries (everything that's not flat fee)
-    hourly_entries = work_df[
-        ~(((work_df['Billable hours'] <= 1) & (work_df['Billable hours amount'] >= 1500)) |
-          (work_df['Billable hours'] == 0))
-    ]
+    flat_fee_entries = work_df[flat_fee_mask]
+    hourly_entries = work_df[~flat_fee_mask]
     
-    # Calculate metrics
     metrics = {
-        'hourly_hours': hourly_entries['Billable hours'].sum(),
-        'hourly_amount': hourly_entries['Billable hours amount'].sum(),
+        'hourly_hours': hourly_entries['Billed & Unbilled hours'].sum(),
+        'hourly_amount': hourly_entries['Billed & Unbilled hours value'].sum(),
         'flat_fee_count': len(flat_fee_entries),
-        'flat_fee_amount': flat_fee_entries['Billable hours amount'].sum(),
+        'flat_fee_amount': flat_fee_entries['Billed & Unbilled hours value'].sum(),
         'total_tracked': work_df['Tracked hours'].sum(),
         'total_billed': work_df['Billed hours'].sum(),
-        'total_billed_amount': work_df['Billed hours amount'].sum()
+        'total_billed_amount': work_df['Billed hours value'].sum(),
+        'utilization_rate': (work_df['Billed & Unbilled hours'].sum() / work_df['Tracked hours'].sum() * 100) if work_df['Tracked hours'].sum() > 0 else 0
     }
     
     # Calculate average hourly rate only for hourly entries
@@ -447,304 +426,56 @@ def calculate_filtered_metrics(df):
         metrics['average_rate'] = 0
     
     return metrics
-def create_client_metrics_table(df):
-    """Create detailed client metrics table with proper rate handling."""
-    # Group by client
-    client_groups = df.groupby('Matter description')
-    
-    # Initialize empty metrics dictionary
-    metrics = {}
-    
-    # Calculate metrics for each client
-    for client, client_df in client_groups:
-        billing_summary = get_billing_summary(client_df)
-        metrics[client] = {
-            'Billable hours': billing_summary['total_hours'],
-            'Billed hours': client_df['Billed hours'].sum(),
-            'Non-billable hours': client_df['Non-billable hours'].sum(),
-            'Billable hours amount': billing_summary['total_amount'],
-            'Flat fee amount': billing_summary['flat_fee_amount'],
-            'Average Rate': billing_summary['average_rate'],
-            'Tracked hours': client_df['Tracked hours'].sum()
-        }
-    
-    # Convert to DataFrame
-    client_metrics = pd.DataFrame.from_dict(metrics, orient='index')
-    
-    # Calculate additional metrics
-    client_metrics['Utilization Rate'] = (
-        client_metrics['Billable hours'] / client_metrics['Tracked hours'] * 100
-    ).round(2)
-    
-    return client_metrics
 
 def display_key_metrics(df):
-    """Display key metrics in the top row with proper rate calculations."""
-    col1, col2, col3, col4 = st.columns(4)
-    
-    # Get all metrics using the new calculation
-    avg_rate, hourly_amount, hourly_hours, flat_fee_amount, flat_fee_count = calculate_average_rate(df)
-    
-    with col1:
-        st.metric(
-            "Hourly Billable",
-            f"{hourly_hours:,.1f} hrs",
-            f"${hourly_amount:,.2f}"
-        )
-    
-    with col2:
-        st.metric(
-            "Flat Fee Matters",
-            f"{flat_fee_count}",
-            f"${flat_fee_amount:,.2f}"
-        )
-    
-    with col3:
-        # Calculate utilization including all hours for accuracy
-        total_tracked = df['Tracked hours'].sum()
-        utilization_rate = (
-            df['Billable hours'].sum() / total_tracked * 100
-            if total_tracked > 0 else 0
-        )
-        st.metric(
-            "Utilization Rate",
-            f"{utilization_rate:.1f}%",
-            "of total hours"
-        )
-    
-    with col4:
-        if avg_rate > 0:
-            st.metric(
-                "Average Rate",
-                f"${avg_rate:,.2f}/hr",
-                "hourly matters only"
-            )
-        else:
-            st.metric(
-                "Average Rate",
-                "N/A",
-                "no hourly matters"
-            )
-
-def get_billing_summary(df):
-    """
-    Get summary of billing metrics with proper handling of flat fees.
-    
-    Parameters:
-    df (pandas.DataFrame): DataFrame containing billing data
-    
-    Returns:
-    dict: Summary metrics including total hours, amounts, and average rates
-    """
-    # Create masks for different fee types
-    flat_fee_mask = (
-        ((df['Billable hours'] <= 1) & (df['Billable hours amount'] >= 1500)) |
-        (df['Billable hours'] == 0)
-    )
-    
-    # Split data into hourly and flat fee entries
-    hourly_entries = df[~flat_fee_mask]
-    flat_fee_entries = df[flat_fee_mask]
-    
-    # Calculate metrics
-    summary = {
-        'total_hours': hourly_entries['Billable hours'].sum(),
-        'total_amount': hourly_entries['Billable hours amount'].sum(),
-        'average_rate': calculate_average_rate(df),
-        'flat_fee_count': len(flat_fee_entries),
-        'flat_fee_amount': flat_fee_entries['Billable hours amount'].sum()
-    }
-    
-    return summary
-def create_attorney_level_distribution(df):
-    """Create a new visualization showing distribution of hours by attorney level."""
-    # Calculate metrics by attorney level
-    level_data = df.groupby('Attorney level').agg({
-        'Billable hours': 'sum',
-        'Non-billable hours': 'sum',
-        'Billed hours': 'sum',
-        'Billable hours amount': 'sum',
-        'User full name (first, last)': 'nunique'
-    }).reset_index()
-    
-    # Rename columns for clarity
-    level_data = level_data.rename(columns={
-        'User full name (first, last)': 'Number of Attorneys'
-    })
-    
-    # Calculate average metrics per attorney in each level
-    level_data['Avg Billable Hours per Attorney'] = (
-        level_data['Billable hours'] / level_data['Number of Attorneys']
-    ).round(2)
-    
-    level_data['Avg Revenue per Attorney'] = (
-        level_data['Billable hours amount'] / level_data['Number of Attorneys']
-    ).round(2)
-    
-    # Create the main hours distribution chart
-    fig_hours = px.bar(
-        level_data,
-        x='Attorney level',
-        y=['Billable hours', 'Non-billable hours', 'Billed hours'],
-        title='Hours Distribution by Attorney Level',
-        barmode='group',
-        labels={
-            'value': 'Hours',
-            'variable': 'Hour Type'
-        }
-    )
-    
-    fig_hours.update_layout(
-        xaxis_tickangle=-45,
-        legend_title='Hour Type',
-        height=500
-    )
-    
-    # Create the average metrics chart
-    fig_avg = px.bar(
-        level_data,
-        x='Attorney level',
-        y=['Avg Billable Hours per Attorney', 'Avg Revenue per Attorney'],
-        title='Average Metrics by Attorney Level',
-        barmode='group',
-        labels={
-            'value': 'Amount',
-            'variable': 'Metric'
-        }
-    )
-    
-    fig_avg.update_layout(
-        xaxis_tickangle=-45,
-        legend_title='Metric',
-        height=500
-    )
-    
-    # Create a summary table
-    summary_table = level_data[[
-        'Attorney level',
-        'Number of Attorneys',
-        'Billable hours',
-        'Avg Billable Hours per Attorney',
-        'Avg Revenue per Attorney'
-    ]].sort_values('Billable hours', ascending=False)
-    
-    return fig_hours, fig_avg, summary_table
-
-def create_attorney_level_efficiency(df):
-    """Create visualization showing efficiency metrics by attorney level."""
-    # Calculate efficiency metrics by attorney level
-    efficiency_data = df.groupby('Attorney level').agg({
-        'Billable hours': 'sum',
-        'Tracked hours': 'sum',
-        'Billed hours': 'sum',
-        'Billable hours amount': 'sum'
-    }).reset_index()
-    
-    # Calculate efficiency metrics
-    efficiency_data['Utilization Rate'] = (
-        efficiency_data['Billable hours'] / efficiency_data['Tracked hours'] * 100
-    ).round(2)
-    
-    efficiency_data['Realization Rate'] = (
-        efficiency_data['Billed hours'] / efficiency_data['Billable hours'] * 100
-    ).round(2)
-    
-    efficiency_data['Average Hourly Rate'] = (
-        efficiency_data['Billable hours amount'] / efficiency_data['Billable hours']
-    ).round(2)
-    
-    # Create the efficiency metrics chart
-    fig = px.bar(
-        efficiency_data,
-        x='Attorney level',
-        y=['Utilization Rate', 'Realization Rate'],
-        title='Efficiency Metrics by Attorney Level',
-        barmode='group',
-        labels={
-            'value': 'Percentage',
-            'variable': 'Metric'
-        }
-    )
-    
-    fig.update_layout(
-        xaxis_tickangle=-45,
-        legend_title='Metric',
-        height=500
-    )
-    
-    # Add average hourly rate as a line on secondary y-axis
-    fig.add_trace(
-        go.Scatter(
-            x=efficiency_data['Attorney level'],
-            y=efficiency_data['Average Hourly Rate'],
-            name='Average Hourly Rate',
-            yaxis='y2',
-            line=dict(color='red', width=2)
-        )
-    )
-    
-    fig.update_layout(
-        yaxis2=dict(
-            title='Average Hourly Rate ($)',
-            overlaying='y',
-            side='right'
-        )
-    )
-    
-    return fig, efficiency_data
-
-def display_key_metrics(df):
-    """Display key metrics with proper handling of flat fees and hourly rates."""
+    """Display key metrics in the dashboard header."""
     metrics = calculate_filtered_metrics(df)
     
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        total_billable = metrics['hourly_hours'] + (0 if pd.isna(metrics['flat_fee_count']) else metrics['flat_fee_count'])
+        total_billable = metrics['hourly_hours'] + metrics['flat_fee_count']
         total_amount = metrics['hourly_amount'] + metrics['flat_fee_amount']
         st.metric(
-            "Total Billable Hours",
-            f"{total_billable:,.1f}",
+            "Total Billable",
+            f"{total_billable:,.1f} hrs",
             f"${total_amount:,.2f}"
         )
     
     with col2:
         st.metric(
-            "Total Billed Hours",
+            "Billed Hours",
             f"{metrics['total_billed']:,.1f}",
             f"${metrics['total_billed_amount']:,.2f}"
         )
     
     with col3:
-        utilization_rate = (
-            (metrics['hourly_hours'] / metrics['total_tracked'] * 100)
-            if metrics['total_tracked'] > 0 else 0
-        )
         st.metric(
             "Utilization Rate",
-            f"{utilization_rate:.1f}%",
+            f"{metrics['utilization_rate']:.1f}%",
             "of total hours"
         )
     
     with col4:
         if metrics['average_rate'] > 0:
             rate_display = f"${metrics['average_rate']:,.2f}/hr"
-            delta = "excluding flat fees"
+            delta = f"{metrics['flat_fee_count']} flat fee matters"
         else:
             rate_display = "Flat fees only"
             delta = f"${metrics['flat_fee_amount']:,.2f} total"
-            
+        
         st.metric(
             "Average Rate",
             rate_display,
             delta
         )
+
 def create_hours_distribution(df):
-    """Create hours distribution chart."""
+    """Create hours distribution pie chart."""
     hours_data = pd.DataFrame({
         'Category': ['Billable', 'Non-Billable', 'Unbilled'],
         'Hours': [
-            df['Billable hours'].sum(),
+            df['Billed & Unbilled hours'].sum(),
             df['Non-billable hours'].sum(),
             df['Unbilled hours'].sum()
         ]
@@ -756,22 +487,42 @@ def create_hours_distribution(df):
         names='Category',
         title='Hours Distribution'
     )
+    
+    fig.update_traces(
+        textposition='inside',
+        textinfo='percent+label'
+    )
+    
     return fig
 
 def create_practice_area_analysis(df):
     """Create practice area analysis chart."""
     practice_data = df.groupby('Practice area').agg({
-        'Billable hours': 'sum',
-        'Billable hours amount': 'sum'
+        'Billed & Unbilled hours': 'sum',
+        'Billed & Unbilled hours value': 'sum'
     }).reset_index()
+    
+    practice_data = practice_data[practice_data['Practice area'].notna()]
     
     fig = px.bar(
         practice_data,
         x='Practice area',
-        y=['Billable hours', 'Billable hours amount'],
+        y=['Billed & Unbilled hours', 'Billed & Unbilled hours value'],
         title='Practice Area Performance',
-        barmode='group'
+        barmode='group',
+        labels={
+            'Billed & Unbilled hours': 'Billable Hours',
+            'Billed & Unbilled hours value': 'Revenue ($)',
+            'Practice area': 'Practice Area'
+        }
     )
+    
+    fig.update_layout(
+        xaxis_tickangle=-45,
+        height=500,
+        showlegend=True
+    )
+    
     return fig
 
 def create_attorney_performance(df):
@@ -823,42 +574,177 @@ def create_client_analysis_charts(df):
     )
     
     return fig1, fig2
+def create_client_analysis_charts(df):
+    """Create client analysis visualizations."""
+    # Top clients by billable hours
+    top_clients = df.groupby('Matter description').agg({
+        'Billed & Unbilled hours': 'sum',
+        'Billed & Unbilled hours value': 'sum'
+    }).sort_values('Billed & Unbilled hours', ascending=False).head(10)
+    
+    fig1 = px.bar(
+        top_clients,
+        y=top_clients.index,
+        x='Billed & Unbilled hours',
+        title='Top 10 Clients by Billable Hours',
+        orientation='h',
+        labels={
+            'Billed & Unbilled hours': 'Billable Hours',
+            'Matter description': 'Client'
+        }
+    )
+    
+    fig1.update_layout(height=500)
+    
+    # Client hours distribution
+    client_hours = df.groupby('Matter description').agg({
+        'Billed & Unbilled hours': 'sum',
+        'Non-billable hours': 'sum',
+        'Unbilled hours': 'sum'
+    }).reset_index()
+    
+    fig2 = px.treemap(
+        client_hours,
+        path=['Matter description'],
+        values='Billed & Unbilled hours',
+        title='Client Hours Distribution',
+        labels={'Billed & Unbilled hours': 'Billable Hours'}
+    )
+    
+    return fig1, fig2
 
 def create_client_practice_area_chart(df):
     """Create client by practice area analysis."""
     client_practice = df.groupby(['Matter description', 'Practice area']).agg({
-        'Billable hours': 'sum'
+        'Billed & Unbilled hours': 'sum'
     }).reset_index()
+    
+    # Filter out rows where Practice area is null
+    client_practice = client_practice[client_practice['Practice area'].notna()]
     
     fig = px.sunburst(
         client_practice,
         path=['Practice area', 'Matter description'],
-        values='Billable hours',
+        values='Billed & Unbilled hours',
         title='Client Distribution by Practice Area'
     )
+    
     return fig
+
+def create_attorney_performance(df):
+    """Create attorney performance scatter plot."""
+    attorney_data = df.groupby('User full name (first, last)').agg({
+        'Billed & Unbilled hours': 'sum',
+        'Billed hours': 'sum',
+        'Billed & Unbilled hours value': 'sum',
+        'Tracked hours': 'sum'
+    }).reset_index()
+    
+    # Calculate utilization rate
+    attorney_data['Utilization Rate'] = (
+        attorney_data['Billed & Unbilled hours'] / attorney_data['Tracked hours'] * 100
+    ).round(2)
+    
+    fig = px.scatter(
+        attorney_data,
+        x='Billed & Unbilled hours',
+        y='Billed & Unbilled hours value',
+        size='Utilization Rate',
+        hover_name='User full name (first, last)',
+        title='Attorney Performance',
+        labels={
+            'Billed & Unbilled hours': 'Billable Hours',
+            'Billed & Unbilled hours value': 'Revenue ($)'
+        }
+    )
+    
+    return fig
+
+def create_attorney_utilization_chart(df):
+    """Create attorney utilization chart."""
+    attorney_util = df.groupby('User full name (first, last)').agg({
+        'Billed & Unbilled hours': 'sum',
+        'Non-billable hours': 'sum',
+        'Tracked hours': 'sum'
+    }).reset_index()
+    
+    attorney_util['Utilization Rate'] = (
+        attorney_util['Billed & Unbilled hours'] / attorney_util['Tracked hours'] * 100
+    ).round(2)
+    
+    # Sort by utilization rate
+    attorney_util = attorney_util.sort_values('Utilization Rate', ascending=True)
+    
+    fig = px.bar(
+        attorney_util,
+        x='Utilization Rate',
+        y='User full name (first, last)',
+        title='Attorney Utilization Rates',
+        orientation='h',
+        color='Utilization Rate',
+        color_continuous_scale='Viridis'
+    )
+    
+    fig.update_layout(
+        height=max(500, len(attorney_util) * 25),
+        yaxis_title='Attorney Name',
+        xaxis_title='Utilization Rate (%)'
+    )
+    
+    return fig
+
+def create_attorney_level_metrics(df):
+    """Create attorney level analysis."""
+    level_data = df.groupby('Attorney level').agg({
+        'Billed & Unbilled hours': 'sum',
+        'Billed & Unbilled hours value': 'sum',
+        'Tracked hours': 'sum',
+        'User full name (first, last)': 'nunique'
+    }).reset_index()
+    
+    level_data = level_data.rename(columns={
+        'User full name (first, last)': 'Number of Attorneys'
+    })
+    
+    # Calculate averages
+    level_data['Avg Hours per Attorney'] = (
+        level_data['Billed & Unbilled hours'] / level_data['Number of Attorneys']
+    ).round(2)
+    
+    level_data['Avg Revenue per Attorney'] = (
+        level_data['Billed & Unbilled hours value'] / level_data['Number of Attorneys']
+    ).round(2)
+    
+    level_data['Utilization Rate'] = (
+        level_data['Billed & Unbilled hours'] / level_data['Tracked hours'] * 100
+    ).round(2)
+    
+    return level_data
 
 def create_trending_chart(df):
     """Create trending analysis chart."""
     daily_data = df.groupby('Activity date').agg({
-        'Billable hours': 'sum',
+        'Billed & Unbilled hours': 'sum',
         'Billed hours': 'sum',
         'Non-billable hours': 'sum'
     }).reset_index()
     
     fig = go.Figure()
+    
     fig.add_trace(go.Scatter(
         x=daily_data['Activity date'],
-        y=daily_data['Billable hours'],
+        y=daily_data['Billed & Unbilled hours'],
         name='Billable Hours',
         mode='lines+markers'
     ))
+    
     fig.add_trace(go.Scatter(
         x=daily_data['Activity date'],
         y=daily_data['Billed hours'],
         name='Billed Hours',
         mode='lines+markers'
     ))
+    
     fig.add_trace(go.Scatter(
         x=daily_data['Activity date'],
         y=daily_data['Non-billable hours'],
@@ -869,74 +755,47 @@ def create_trending_chart(df):
     fig.update_layout(
         title='Daily Hours Trend',
         xaxis_title='Date',
-        yaxis_title='Hours'
+        yaxis_title='Hours',
+        height=500,
+        showlegend=True
     )
-    return fig
-
-def create_attorney_utilization_chart(df):
-    """Create attorney utilization chart."""
-    attorney_util = df.groupby('User full name (first, last)').agg({
-        'Billable hours': 'sum',
-        'Non-billable hours': 'sum',
-        'Tracked hours': 'sum'
-    }).reset_index()
     
-    attorney_util['Utilization Rate'] = (
-        attorney_util['Billable hours'] / attorney_util['Tracked hours'] * 100
-    ).round(2)
-    
-    fig = px.bar(
-        attorney_util,
-        x='User full name (first, last)',
-        y='Utilization Rate',
-        title='Attorney Utilization Rates',
-        color='Utilization Rate',
-        color_continuous_scale='Viridis'
-    )
-    fig.update_layout(xaxis_tickangle=-45)
-    return fig
-
-def create_practice_area_sunburst(df):
-    """Create practice area sunburst chart."""
-    practice_data = df.groupby(['Practice area', 'User full name (first, last)']).agg({
-        'Billable hours': 'sum'
-    }).reset_index()
-    
-    fig = px.sunburst(
-        practice_data,
-        path=['Practice area', 'User full name (first, last)'],
-        values='Billable hours',
-        title='Practice Area Distribution by Attorney'
-    )
     return fig
 
 def create_client_metrics_table(df):
     """Create detailed client metrics table."""
     client_metrics = df.groupby('Matter description').agg({
-        'Billable hours': 'sum',
+        'Billed & Unbilled hours': 'sum',
         'Billed hours': 'sum',
         'Non-billable hours': 'sum',
-        'Billable hours amount': 'sum',
-        'Billed hours amount': 'sum',
-        'Tracked hours': 'sum'
+        'Billed & Unbilled hours value': 'sum',
+        'Billed hours value': 'sum',
+        'Tracked hours': 'sum',
+        'Company name': 'first',
+        'Practice area': lambda x: ', '.join(sorted(x.unique())),
+        'Matter status': 'first',
+        'Matter billing method': 'first'
     }).round(2)
     
     # Calculate additional metrics
     client_metrics['Utilization Rate'] = (
-        client_metrics['Billable hours'] / client_metrics['Tracked hours'] * 100
+        client_metrics['Billed & Unbilled hours'] / client_metrics['Tracked hours'] * 100
     ).round(2)
     
     client_metrics['Average Rate'] = (
-        client_metrics['Billable hours amount'] / client_metrics['Billable hours']
+        client_metrics['Billed & Unbilled hours value'] / 
+        client_metrics['Billed & Unbilled hours']
     ).round(2)
     
-    client_metrics['Efficiency Rate'] = (
-        client_metrics['Billed hours'] / client_metrics['Billable hours'] * 100
+    client_metrics['Realization Rate'] = (
+        client_metrics['Billed hours'] / 
+        client_metrics['Billed & Unbilled hours'] * 100
     ).round(2)
     
     return client_metrics
-
+    
 def main():
+    """Main application setup and layout."""
     st.set_page_config(page_title="Legal Dashboard", layout="wide")
     st.title("Scale Management Dashboard")
     
@@ -945,20 +804,18 @@ def main():
     
     # Add refresh date to header
     st.markdown(
-        """
+        f"""
         <div style='text-align: right; color: gray; font-size: 0.8em;'>
-        Last Refresh: December 16, 2024
+        Last Refresh: {datetime.now().strftime("%B %d, %Y")}
         </div>
         """,
         unsafe_allow_html=True
     )
     
-    # Load data directly
-    df = load_and_process_data()
-    
     if df is not None:
         # Data range info
-        st.info("Current data covers: November 1 2024 - December 16, 2024")
+        date_range = f"{df['Activity date'].min().strftime('%B %d, %Y')} - {df['Activity date'].max().strftime('%B %d, %Y')}"
+        st.info(f"Current data covers: {date_range}")
         
         # Get filters
         filters = create_sidebar_filters(df)
@@ -973,13 +830,20 @@ def main():
             for filter_name, filter_value in active_filters.items():
                 st.markdown(f"**{filter_name.replace('_', ' ').title()}:** {', '.join(map(str, filter_value)) if isinstance(filter_value, list) else filter_value}")
         
-        # Display metrics and charts
+        # Display key metrics
         display_key_metrics(filtered_df)
         
         # Create tabs for different analysis sections
-        main_tabs = st.tabs(["Overview", "Client Analysis", "Attorney Analysis", "Practice Areas", "Trending"])
+        main_tabs = st.tabs([
+            "Overview", 
+            "Client Analysis", 
+            "Attorney Analysis", 
+            "Practice Areas", 
+            "Trending"
+        ])
         
         with main_tabs[0]:  # Overview Tab
+            st.subheader("Overview Dashboard")
             col1, col2 = st.columns(2)
             
             with col1:
@@ -997,15 +861,40 @@ def main():
             # Additional overview metrics in expandable section
             with st.expander("Detailed Overview Metrics"):
                 overview_metrics = filtered_df.agg({
-                    'Billable hours': 'sum',
+                    'Billed & Unbilled hours': 'sum',
                     'Non-billable hours': 'sum',
                     'Billed hours': 'sum',
-                    'Billable hours amount': 'sum',
-                    'Billed hours amount': 'sum'
+                    'Billed & Unbilled hours value': 'sum',
+                    'Billed hours value': 'sum',
+                    'Tracked hours': 'sum'
                 }).round(2)
-                st.write(overview_metrics)
+                
+                # Create a formatted metrics display
+                metrics_df = pd.DataFrame({
+                    'Metric': [
+                        'Total Billable Hours',
+                        'Total Non-billable Hours',
+                        'Total Billed Hours',
+                        'Total Billable Amount',
+                        'Total Billed Amount',
+                        'Total Tracked Hours'
+                    ],
+                    'Value': overview_metrics.values
+                }, index=overview_metrics.index)
+                
+                st.dataframe(
+                    metrics_df,
+                    column_config={
+                        "Value": st.column_config.NumberColumn(
+                            "Value",
+                            format="%.2f"
+                        )
+                    }
+                )
         
         with main_tabs[1]:  # Client Analysis Tab
+            st.subheader("Client Analysis")
+            
             # Client Analysis Section
             client_bar, client_treemap = create_client_analysis_charts(filtered_df)
             
@@ -1024,6 +913,8 @@ def main():
             # Client Metrics Table
             st.subheader("Client Metrics")
             client_metrics = create_client_metrics_table(filtered_df)
+            
+            # Display the metrics table with formatting
             st.dataframe(
                 client_metrics,
                 column_config={
@@ -1035,9 +926,13 @@ def main():
                         "Average Rate",
                         format="$%.2f"
                     ),
-                    "Efficiency Rate": st.column_config.NumberColumn(
-                        "Efficiency Rate",
+                    "Realization Rate": st.column_config.NumberColumn(
+                        "Realization Rate",
                         format="%.2f%%"
+                    ),
+                    "Billed & Unbilled hours value": st.column_config.NumberColumn(
+                        "Revenue",
+                        format="$%.2f"
                     )
                 }
             )
@@ -1052,6 +947,8 @@ def main():
             )
         
         with main_tabs[2]:  # Attorney Analysis Tab
+            st.subheader("Attorney Analysis")
+            
             col1, col2 = st.columns(2)
             
             with col1:
@@ -1066,24 +963,45 @@ def main():
                     use_container_width=True
                 )
             
-            # Attorney Metrics Table
-            st.subheader("Attorney Metrics")
+            # Attorney Level Analysis
+            st.subheader("Attorney Level Analysis")
+            level_metrics = create_attorney_level_metrics(filtered_df)
+            
+            # Display attorney level metrics
+            st.dataframe(
+                level_metrics,
+                column_config={
+                    "Utilization Rate": st.column_config.NumberColumn(
+                        "Utilization Rate",
+                        format="%.2f%%"
+                    ),
+                    "Avg Revenue per Attorney": st.column_config.NumberColumn(
+                        "Avg Revenue",
+                        format="$%.2f"
+                    )
+                }
+            )
+            
+            # Individual Attorney Metrics Table
+            st.subheader("Individual Attorney Metrics")
             attorney_metrics = filtered_df.groupby('User full name (first, last)').agg({
-                'Billable hours': 'sum',
+                'Billed & Unbilled hours': 'sum',
                 'Non-billable hours': 'sum',
                 'Billed hours': 'sum',
-                'Billable hours amount': 'sum',
-                'Billed hours amount': 'sum',
-                'Tracked hours': 'sum'
+                'Billed & Unbilled hours value': 'sum',
+                'Tracked hours': 'sum',
+                'Attorney level': 'first'
             }).round(2)
             
             # Calculate additional metrics
             attorney_metrics['Utilization Rate'] = (
-                attorney_metrics['Billable hours'] / attorney_metrics['Tracked hours'] * 100
+                attorney_metrics['Billed & Unbilled hours'] / 
+                attorney_metrics['Tracked hours'] * 100
             ).round(2)
             
             attorney_metrics['Average Rate'] = (
-                attorney_metrics['Billable hours amount'] / attorney_metrics['Billable hours']
+                attorney_metrics['Billed & Unbilled hours value'] / 
+                attorney_metrics['Billed & Unbilled hours']
             ).round(2)
             
             st.dataframe(
@@ -1110,43 +1028,87 @@ def main():
             )
         
         with main_tabs[3]:  # Practice Areas Tab
+            st.subheader("Practice Area Analysis")
+            
             # Practice Area Distribution
             st.plotly_chart(
-                create_practice_area_sunburst(filtered_df),
+                create_practice_area_analysis(filtered_df),
                 use_container_width=True
             )
             
             # Practice Area Metrics Table
             st.subheader("Practice Area Metrics")
             practice_metrics = filtered_df.groupby('Practice area').agg({
-                'Billable hours': 'sum',
+                'Billed & Unbilled hours': 'sum',
                 'Non-billable hours': 'sum',
                 'Billed hours': 'sum',
-                'Billable hours amount': 'sum',
-                'Billed hours amount': 'sum'
+                'Billed & Unbilled hours value': 'sum',
+                'Billed hours value': 'sum',
+                'Matter description': 'nunique'
             }).round(2)
             
-            st.dataframe(practice_metrics)
+            practice_metrics = practice_metrics.rename(columns={
+                'Matter description': 'Number of Matters'
+            })
+            
+            st.dataframe(
+                practice_metrics,
+                column_config={
+                    "Billed & Unbilled hours value": st.column_config.NumberColumn(
+                        "Revenue",
+                        format="$%.2f"
+                    )
+                }
+            )
         
         with main_tabs[4]:  # Trending Tab
+            st.subheader("Time Trends")
+            
+            # Daily trending chart
             st.plotly_chart(
                 create_trending_chart(filtered_df),
                 use_container_width=True
             )
             
             # Monthly trends
+            st.subheader("Monthly Trends")
             monthly_data = filtered_df.groupby([
                 pd.Grouper(key='Activity date', freq='M')
             ]).agg({
-                'Billable hours': 'sum',
+                'Billed & Unbilled hours': 'sum',
                 'Billed hours': 'sum',
-                'Non-billable hours': 'sum'
+                'Non-billable hours': 'sum',
+                'Billed & Unbilled hours value': 'sum'
             }).reset_index()
             
-            st.subheader("Monthly Trends")
-            st.line_chart(
-                monthly_data.set_index('Activity date')
+            # Create monthly trend chart
+            fig = px.line(
+                monthly_data,
+                x='Activity date',
+                y=['Billed & Unbilled hours', 'Billed hours', 'Non-billable hours'],
+                title='Monthly Hours Trend',
+                labels={
+                    'value': 'Hours',
+                    'variable': 'Hour Type',
+                    'Activity date': 'Month'
+                }
             )
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Add revenue trend
+            revenue_fig = px.line(
+                monthly_data,
+                x='Activity date',
+                y='Billed & Unbilled hours value',
+                title='Monthly Revenue Trend',
+                labels={
+                    'Billed & Unbilled hours value': 'Revenue ($)',
+                    'Activity date': 'Month'
+                }
+            )
+            
+            st.plotly_chart(revenue_fig, use_container_width=True)
 
 if __name__ == "__main__":
     main()
