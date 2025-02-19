@@ -13,16 +13,16 @@ st.set_page_config(page_title="Legal Dashboard", layout="wide")
 def load_and_process_data():
     """Load and process the CSV file and add attorney level information."""
     try:
-        # Load the tab-separated file
-        df = pd.read_csv('Test_Full_Year.csv', sep='\t')
+        # Load the CSV file
+        df = pd.read_csv('Test_Full_Year.csv')
         
         # Convert date strings to datetime objects
         date_columns = ['Activity date', 'Matter open date', 'Matter pending date', 'Matter close date']
         for col in date_columns:
             if col in df.columns:
-                df[col] = pd.to_datetime(df[col], errors='coerce')
+                df[col] = pd.to_datetime(df[col], format='%m/%d/%Y', errors='coerce')
         
-        # Convert numeric columns
+        # Convert numeric columns with robust error handling
         numeric_columns = [
             'Tracked hours',
             'Billed & Unbilled hours',
@@ -44,8 +44,16 @@ def load_and_process_data():
         # Convert Matter description to string
         df['Matter description'] = df['Matter description'].fillna('').astype(str)
         
-        # Convert boolean columns
-        df['Billable matter'] = df['Billable matter'].fillna(0).astype(int)
+        # Add missing columns if they don't exist
+        required_columns = [
+            'Activity quarter', 'Activity month', 'Originating attorney', 
+            'Practice area', 'Matter location', 'Matter status', 
+            'Billable matter', 'Matter billing method', 
+            'Company name', 'Contact full name (last, first)'
+        ]
+        for col in required_columns:
+            if col not in df.columns:
+                df[col] = ''
         
         # Attorney levels mapping
         attorney_levels = {
@@ -160,21 +168,11 @@ def load_and_process_data():
         # Add year column for filtering
         df['year'] = df['Activity date'].dt.year
         
-        # Add quarter if not present
+        # Add missing information if not present
         if 'Activity quarter' not in df.columns:
             df['Activity quarter'] = df['Activity date'].dt.quarter.apply(lambda x: f'Q{x}')
-        
-        # Add month if not present
         if 'Activity month' not in df.columns:
             df['Activity month'] = df['Activity date'].dt.month_name()
-        
-        # Clean up specific columns
-        df['Matter location'] = df['Matter location'].fillna('').str.strip()
-        df['Practice area'] = df['Practice area'].fillna('').str.strip()
-        df['Matter status'] = df['Matter status'].fillna('').str.strip()
-        df['Matter billing method'] = df['Matter billing method'].fillna('').str.strip()
-        df['Company name'] = df['Company name'].fillna('').str.strip()
-        df['Contact full name (last, first)'] = df['Contact full name (last, first)'].fillna('').str.strip()
         
         return df
         
@@ -371,73 +369,71 @@ def create_sidebar_filters(df):
     
 def filter_data(df, filters):
     """Apply filters to the dataframe."""
-    filtered_df = df.copy()
-    
-    # Time filters
-    if filters['year']:
-        filtered_df = filtered_df[filtered_df['year'] == filters['year']]
-    if filters['quarter']:
-        filtered_df = filtered_df[filtered_df['Activity quarter'].fillna('').astype(str) == filters['quarter']]
-    if filters['months']:
-        filtered_df = filtered_df[filtered_df['Activity month'].fillna('').isin(filters['months'])]
-    if len(filters['date_range']) == 2:
-        start_date = pd.to_datetime(filters['date_range'][0])
-        end_date = pd.to_datetime(filters['date_range'][1])
-        filtered_df = filtered_df[
-            (filtered_df['Activity date'].dt.date >= start_date.date()) &
-            (filtered_df['Activity date'].dt.date <= end_date.date())
-        ]
-    
-    # Attorney filters - use robust string comparison
-    if filters['attorney_levels']:
-        filtered_df = filtered_df[filtered_df['Attorney level'].fillna('').isin(filters['attorney_levels'])]
-    if filters['attorneys']:
-        filtered_df = filtered_df[filtered_df['User full name (first, last)'].fillna('').isin(filters['attorneys'])]
-    if filters['originating_attorneys']:
-        filtered_df = filtered_df[filtered_df['Originating attorney'].fillna('').isin(filters['originating_attorneys'])]
-    if filters['min_hours'] > 0:
-        filtered_df = filtered_df[filtered_df['Tracked hours'].fillna(0) >= filters['min_hours']]
-    
-    # Practice area filters
-    if filters['practice_areas']:
-        filtered_df = filtered_df[filtered_df['Practice area'].fillna('').isin(filters['practice_areas'])]
-    if filters['locations']:
-        filtered_df = filtered_df[filtered_df['Matter location'].fillna('').isin(filters['locations'])]
-    
-    # Matter filters
-    if filters['matter_status']:
-        filtered_df = filtered_df[filtered_df['Matter status'].fillna('').isin(filters['matter_status'])]
-    if filters['billable_matter']:
-        filtered_df = filtered_df[filtered_df['Billable matter'].fillna('').astype(str).isin([str(x) for x in filters['billable_matter']])]
-    if filters['billing_methods']:
-        filtered_df = filtered_df[filtered_df['Matter billing method'].fillna('').isin(filters['billing_methods'])]
-    
-    # Financial filters
-    if filters['min_amount'] > 0:
-        filtered_df = filtered_df[filtered_df['Billed & Unbilled hours value'].fillna(0) >= filters['min_amount']]
-    if len(filters['rate_range']) == 2:
-        filtered_df = filtered_df[
-            (filtered_df['User rate'].fillna(0) >= filters['rate_range'][0]) &
-            (filtered_df['User rate'].fillna(0) <= filters['rate_range'][1])
-        ]
-    
-    # Client filters
-    if filters['companies']:
-        filtered_df = filtered_df[filtered_df['Company name'].fillna('').isin(filters['companies'])]
-    if filters['clients']:
-        filtered_df = filtered_df[filtered_df['Contact full name (last, first)'].fillna('').isin(filters['clients'])]
-    if filters['matters']:
-        filtered_df = filtered_df[filtered_df['Matter description'].fillna('').isin(filters['matters'])]
-    if filters['min_client_hours'] > 0:
-        client_hours = filtered_df.groupby('Matter description')['Tracked hours'].transform('sum')
-        filtered_df = filtered_df[client_hours >= filters['min_client_hours']]
-    
-    # Check if filtering resulted in empty dataframe
-    if len(filtered_df) == 0:
-        st.warning("No data available for the selected filters. Please adjust your criteria.")
-        return df  # Return original dataframe if filtered is empty
+    try:
+        filtered_df = df.copy()
         
-    return filtered_df
+        # Time filters
+        if filters['year']:
+            filtered_df = filtered_df[filtered_df['year'] == filters['year']]
+        if filters['quarter']:
+            filtered_df = filtered_df[filtered_df['Activity quarter'] == filters['quarter']]
+        if filters['months']:
+            filtered_df = filtered_df[filtered_df['Activity month'].isin(filters['months'])]
+        if len(filters['date_range']) == 2:
+            filtered_df = filtered_df[
+                (filtered_df['Activity date'].dt.date >= filters['date_range'][0]) &
+                (filtered_df['Activity date'].dt.date <= filters['date_range'][1])
+            ]
+        
+        # Attorney filters
+        if filters['attorney_levels']:
+            filtered_df = filtered_df[filtered_df['Attorney level'].isin(filters['attorney_levels'])]
+        if filters['attorneys']:
+            filtered_df = filtered_df[filtered_df['User full name (first, last)'].isin(filters['attorneys'])]
+        if filters['originating_attorneys']:
+            filtered_df = filtered_df[filtered_df['Originating attorney'].isin(filters['originating_attorneys'])]
+        
+        # Practice area filters
+        if filters['practice_areas']:
+            filtered_df = filtered_df[filtered_df['Practice area'].isin(filters['practice_areas'])]
+        if filters['locations']:
+            filtered_df = filtered_df[filtered_df['Matter location'].isin(filters['locations'])]
+        
+        # Matter filters
+        if filters['matter_status']:
+            filtered_df = filtered_df[filtered_df['Matter status'].isin(filters['matter_status'])]
+        if filters['billable_matter']:
+            filtered_df = filtered_df[filtered_df['Billable matter'].isin(filters['billable_matter'])]
+        if filters['billing_methods']:
+            filtered_df = filtered_df[filtered_df['Matter billing method'].isin(filters['billing_methods'])]
+        
+        # Financial filters
+        if filters['min_amount'] > 0:
+            filtered_df = filtered_df[filtered_df['Billed & Unbilled hours value'] >= filters['min_amount']]
+        if len(filters['rate_range']) == 2:
+            filtered_df = filtered_df[
+                (filtered_df['User rate'] >= filters['rate_range'][0]) &
+                (filtered_df['User rate'] <= filters['rate_range'][1])
+            ]
+        
+        # Client filters
+        if filters['companies']:
+            filtered_df = filtered_df[filtered_df['Company name'].isin(filters['companies'])]
+        if filters['clients']:
+            filtered_df = filtered_df[filtered_df['Contact full name (last, first)'].isin(filters['clients'])]
+        if filters['matters']:
+            filtered_df = filtered_df[filtered_df['Matter description'].isin(filters['matters'])]
+        
+        if len(filtered_df) == 0:
+            st.warning("No data available for the selected filters. Please adjust your criteria.")
+            return df
+            
+        return filtered_df
+        
+    except Exception as e:
+        st.error(f"Error applying filters: {str(e)}")
+        return df
+
 def calculate_metrics(df):
     """Calculate key performance metrics."""
     try:
