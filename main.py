@@ -228,7 +228,122 @@ def create_sidebar_filters(df):
             max_value=max_date
         )
 
-    # (other tabs code remains the same)
+    with filter_tabs[1]:  # Attorney Filters
+        st.subheader("Attorney Information")
+        
+        attorney_levels = sorted(df['Attorney level'].dropna().unique())
+        selected_attorney_levels = st.multiselect(
+            "Attorney Levels",
+            options=attorney_levels
+        )
+        
+        attorney_options = sorted(df['User full name (first, last)'].unique())
+        if selected_attorney_levels:
+            attorney_options = sorted([
+                name for name in df['User full name (first, last)'].unique()
+                if df[df['User full name (first, last)'] == name]['Attorney level'].iloc[0] in selected_attorney_levels
+            ])
+        
+        selected_attorneys = st.multiselect(
+            "Attorneys",
+            options=attorney_options
+        )
+        
+        selected_originating = st.multiselect(
+            "Originating Attorneys",
+            options=sorted(df['Originating attorney'].dropna().unique())
+        )
+        
+        tracked_hours_max = df['Tracked hours'].fillna(0).max()
+        min_hours = st.slider(
+            "Minimum Billable Hours",
+            min_value=0.0,
+            max_value=float(tracked_hours_max),
+            value=0.0,
+            step=0.1
+        )
+
+    with filter_tabs[2]:  # Practice Filters
+        st.subheader("Practice Areas")
+        selected_practice_areas = st.multiselect(
+            "Practice Areas",
+            options=sorted(df['Practice area'].dropna().unique())
+        )
+        
+        selected_locations = st.multiselect(
+            "Matter Locations",
+            options=sorted(df['Matter location'].dropna().unique())
+        )
+
+    with filter_tabs[3]:  # Matter Filters
+        st.subheader("Matter Details")
+        selected_matter_status = st.multiselect(
+            "Matter Status",
+            options=sorted(df['Matter status'].dropna().unique())
+        )
+        
+        billable_matter = st.multiselect(
+            "Billable Matter",
+            options=sorted(df['Billable matter'].dropna().unique())
+        )
+        
+        selected_billing_methods = st.multiselect(
+            "Matter Billing Method",
+            options=sorted(df['Matter billing method'].dropna().unique())
+        )
+
+    with filter_tabs[4]:  # Financial Filters
+        st.subheader("Financial Metrics")
+        
+        billed_value_max = df['Billed & Unbilled hours value'].fillna(0).max()
+        min_amount = st.number_input(
+            "Minimum Billable Amount",
+            min_value=0.0,
+            max_value=float(billed_value_max),
+            value=0.0,
+            step=100.0
+        )
+        
+        user_rate_min = df['User rate'].fillna(0).min()
+        user_rate_max = df['User rate'].fillna(0).max()
+        rate_range = st.slider(
+            "Hourly Rate Range",
+            min_value=float(user_rate_min),
+            max_value=float(user_rate_max),
+            value=(float(user_rate_min), float(user_rate_max)),
+            step=10.0
+        )
+
+    with filter_tabs[5]:  # Client Filters
+        st.subheader("Client Information")
+        selected_companies = st.multiselect(
+            "Company Name",
+            options=sorted(df['Company name'].dropna().unique())
+        )
+        
+        selected_clients = st.multiselect(
+            "Client Name",
+            options=sorted(df['Contact full name (last, first)'].dropna().unique())
+        )
+        
+        selected_matters = st.multiselect(
+            "Matter Description",
+            options=sorted(df['Matter description'].unique())
+        )
+        
+        client_hours_max = df.groupby('Matter description')['Tracked hours'].sum().fillna(0).max()
+        min_client_hours = st.slider(
+            "Minimum Client Hours",
+            min_value=0.0,
+            max_value=float(client_hours_max),
+            value=0.0,
+            step=0.1
+        )
+
+    # Display refresh information
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**Last Data Refresh:** " + datetime.now().strftime("%B %d, %Y"))
+    st.sidebar.markdown("**Data Range:** January 2024 - Present")
 
     return {
         'year': selected_year,
@@ -251,6 +366,7 @@ def create_sidebar_filters(df):
         'matters': selected_matters,
         'min_client_hours': min_client_hours
     }
+    
 def filter_data(df, filters):
     """Apply filters to the dataframe."""
     try:
